@@ -276,7 +276,8 @@ public class TestSchedulerApplicationAttempt {
     assertEquals(60.0f,
         app.getResourceUsageReport().getClusterUsagePercentage(), 0.01f);
 
-    queue = createQueue("test3", null, 0.0f);
+    // test NaN values and Infinite values
+    queue = createQueue("test3", null, (float)Math.pow(2,-149));
     app = new SchedulerApplicationAttempt(appAttId, user, queue,
         queue.getAbstractUsersManager(), rmContext);
 
