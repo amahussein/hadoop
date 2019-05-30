@@ -846,12 +846,41 @@ public interface MRJobConfig {
     MR_AM_PREFIX + "job.task.estimator.class";
 
   /** The lambda value in the smoothing function of the task estimator.*/
+  public static final String MR_AM_TASK_ESTIMATOR_SIMPLE_SMOOTH_LAMBDA_MS =
+      MR_AM_PREFIX
+          + "job.task.estimator.simple.exponential.smooth.lambda-ms";
   public static final String MR_AM_TASK_ESTIMATOR_SMOOTH_LAMBDA_MS =
-    MR_AM_PREFIX
-    + "job.task.estimator.exponential.smooth.lambda-ms";
+      MR_AM_PREFIX
+          + "job.task.estimator.exponential.smooth.lambda-ms";
+  public static final long DEFAULT_MR_AM_TASK_ESTIMATOR_SMOOTH_LAMBDA_MS =
+      1000L * 60;
+  public static final long DEFAULT_MR_AM_TASK_ESTIMATOR_SIMPLE_SMOOTH_LAMBDA_MS =
+      1000L * 120;
 
-  public static final long DEFAULT_MR_AM_TASK_ESTIMATOR_SMOOTH_LAMBDA_MS = 
-  1000L * 60;
+  /**
+   * The window length in the simple exponential smoothing that considers the
+   * task attempt is stagnated
+   */
+  public static final String MR_AM_TASK_ESTIMATOR_SIMPLE_SMOOTH_STAGNATED_MS =
+      MR_AM_PREFIX
+          + "job.task.estimator.simple.exponential.smooth.stagnated-ms";
+  public static final long DEFAULT_MR_AM_TASK_ESTIMATOR_SIMPLE_SMOOTH_STAGNATED_MS =
+      1000L * 360;
+
+  /**
+   * The number of initial readings that the estimator ignores before giving a
+   * prediction. At the beginning the smooth estimator won't be accurate in
+   * prediction
+   */
+  public static final String MR_AM_TASK_ESTIMATOR_SIMPLE_SMOOTH_SKIP_INITIALS =
+      MR_AM_PREFIX
+          + "job.task.estimator.simple.exponential.smooth.skip-initials";
+  /**
+   * The default number of reading the estimators is going to ignore before
+   * returning the smooth exponential prediction.
+   */
+  public static final int DEFAULT_MR_AM_TASK_ESTIMATOR_SIMPLE_SMOOTH_INITIALS =
+      24;
 
   /** true if the smoothing rate should be exponential.*/
   public static final String MR_AM_TASK_ESTIMATOR_EXPONENTIAL_RATE_ENABLE =

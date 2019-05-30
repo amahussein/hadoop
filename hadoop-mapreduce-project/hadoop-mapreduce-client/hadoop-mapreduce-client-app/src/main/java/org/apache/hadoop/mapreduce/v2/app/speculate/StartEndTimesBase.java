@@ -153,7 +153,10 @@ abstract class StartEndTimesBase implements TaskRuntimeEstimator {
       return -1L;
     }
 
-    return (long)statistics.mean();
+    double statsMeanCI = statistics.meanCI();
+    double expectedVal =
+        statsMeanCI + Math.min(statsMeanCI * 0.25, statistics.std() / 2);
+    return (long)(expectedVal);
   }
 
   @Override
