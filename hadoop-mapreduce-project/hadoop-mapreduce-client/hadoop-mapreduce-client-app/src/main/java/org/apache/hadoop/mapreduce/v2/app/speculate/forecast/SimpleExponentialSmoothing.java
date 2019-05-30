@@ -20,14 +20,17 @@ package org.apache.hadoop.mapreduce.v2.app.speculate.forecast;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Implementation of the static model for Simple exponential smoothing.
+ */
 public class SimpleExponentialSmoothing {
-  public final static double kDefaultForecast = -1.0;
+  public final static double DEFAULT_FORECAST = -1.0;
   private final int kMinimumReads;
   private final long kStagnatedWindow;
   private final long startTime;
   private long timeConstant;
 
-  AtomicReference<ForecastRecord> forecastRefEntry;
+  private AtomicReference<ForecastRecord> forecastRefEntry;
 
   public static SimpleExponentialSmoothing createForecast(long timeConstant,
       int skipCnt, long stagnatedWindow, long timeStamp) {
@@ -45,8 +48,8 @@ public class SimpleExponentialSmoothing {
   }
 
   private class ForecastRecord {
-    double alpha;
-    long timeStamp;
+    private double alpha;
+    private long timeStamp;
     private double sample;
     private double rawData;
     private double forecast;
@@ -69,27 +72,27 @@ public class SimpleExponentialSmoothing {
       this.myIndex = index;
     }
 
-    private double preProcessRawData(double rawData, long timeStamp) {
-      return processRawData(this.rawData, this.timeStamp, rawData, timeStamp);
+    private double preProcessRawData(double rData, long newTime) {
+      return processRawData(this.rawData, this.timeStamp, rData, newTime);
     }
 
-    public ForecastRecord append(long timeStamp, double rawData) {
-      if (this.timeStamp > timeStamp) {
+    public ForecastRecord append(long newTimeStamp, double rData) {
+      if (this.timeStamp > newTimeStamp) {
         return this;
       }
-      double newSample = preProcessRawData(rawData, timeStamp);
-      long deltaTime = this.timeStamp - timeStamp;
+      double newSample = preProcessRawData(rData, newTimeStamp);
+      long deltaTime = this.timeStamp - newTimeStamp;
       if (this.myIndex == kMinimumReads) {
-        timeConstant = Math.max(timeConstant, timeStamp - startTime);
+        timeConstant = Math.max(timeConstant, newTimeStamp - startTime);
       }
       double smoothFactor =
           1 - Math.exp(((double) deltaTime) / timeConstant);
-      double forecast =
+      double forecastVal =
           smoothFactor * newSample + (1.0 - smoothFactor) * this.forecast;
       double newSSEError =
           this.sseError + Math.pow(newSample - this.forecast, 2);
-      return new ForecastRecord(smoothFactor, newSample, rawData, forecast,
-          timeStamp, newSSEError, this.myIndex + 1);
+      return new ForecastRecord(smoothFactor, newSample, rData, forecastVal,
+          newTimeStamp, newSSEError, this.myIndex + 1);
     }
 
   }
@@ -130,11 +133,11 @@ public class SimpleExponentialSmoothing {
     if (rec != null && rec.myIndex > kMinimumReads) {
       return rec.forecast;
     }
-    return kDefaultForecast;
+    return DEFAULT_FORECAST;
   }
 
   public boolean isDefaultForecast(double value) {
-    return value == kDefaultForecast;
+    return value == DEFAULT_FORECAST;
   }
 
   public double getSSE() {
@@ -142,12 +145,14 @@ public class SimpleExponentialSmoothing {
     if (rec != null) {
       return rec.sseError;
     }
-    return kDefaultForecast;
+    return DEFAULT_FORECAST;
   }
 
   public boolean isErrorWithinBound(double bound) {
     double squaredErr = getSSE();
-    if(squaredErr < 0) return false;
+    if (squaredErr < 0) {
+      return false;
+    }
     return bound > squaredErr;
   }
 
@@ -156,7 +161,7 @@ public class SimpleExponentialSmoothing {
     if (rec != null) {
       return rec.rawData;
     }
-    return kDefaultForecast;
+    return DEFAULT_FORECAST;
   }
 
   public long getTimeStamp() {
@@ -169,6 +174,10 @@ public class SimpleExponentialSmoothing {
 
   public long getStartTime() {
     return startTime;
+  }
+
+  public AtomicReference<ForecastRecord> getForecastRefEntry() {
+    return forecastRefEntry;
   }
 
   @Override

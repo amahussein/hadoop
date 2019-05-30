@@ -24,11 +24,15 @@ import org.apache.hadoop.yarn.util.ControlledClock;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Testing the statistical model of simple exponential estimator.
+ */
 public class TestSimpleExponentialForecast {
-  private static final Log LOG = LogFactory.getLog(TestSimpleExponentialForecast.class);
+  private static final Log LOG =
+      LogFactory.getLog(TestSimpleExponentialForecast.class);
 
   private static long clockTicks = 1000L;
-  ControlledClock clock;
+  private ControlledClock clock;
 
   private int  incTestSimpleExponentialForecast() {
     clock = new ControlledClock();

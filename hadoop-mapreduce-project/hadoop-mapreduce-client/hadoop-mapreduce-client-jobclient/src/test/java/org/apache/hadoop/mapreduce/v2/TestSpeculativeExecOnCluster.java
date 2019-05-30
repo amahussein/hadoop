@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +62,16 @@ import org.apache.hadoop.mapreduce.v2.app.speculate.TaskRuntimeEstimator;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+/**
+ * Test speculation on Mini Cluster.
+ */
+@Ignore
+@RunWith(Parameterized.class)
 public class TestSpeculativeExecOnCluster {
   private static final Log LOG = LogFactory
       .getLog(TestSpeculativeExecOnCluster.class);
@@ -78,19 +87,19 @@ public class TestSpeculativeExecOnCluster {
   private static final int MAP_SLEEP_COUNT_DEFAULT = 10000;
   private static final int REDUCE_SLEEP_COUNT_DEFAULT = 1000;
 
-  public static String MAP_SLEEP_COUNT =
+  private static final String MAP_SLEEP_COUNT =
       "mapreduce.sleepjob.map.sleep.count";
-  public static String REDUCE_SLEEP_COUNT =
+  private static final String REDUCE_SLEEP_COUNT =
       "mapreduce.sleepjob.reduce.sleep.count";
-  public static String MAP_SLEEP_TIME =
+  private static final String MAP_SLEEP_TIME =
       "mapreduce.sleepjob.map.sleep.time";
-  public static String REDUCE_SLEEP_TIME =
+  private static final String REDUCE_SLEEP_TIME =
       "mapreduce.sleepjob.reduce.sleep.time";
-  public static String MAP_SLEEP_CALCULATOR_TYPE =
+  private static final String MAP_SLEEP_CALCULATOR_TYPE =
       "mapreduce.sleepjob.map.sleep.time.calculator";
-  public static String MAP_SLEEP_CALCULATOR_TYPE_DEFAULT = "normal_run";
+  private static final String MAP_SLEEP_CALCULATOR_TYPE_DEFAULT = "normal_run";
 
-  public static Map<String, SleepDurationCalculator> mapSleepTypeMapper;
+  private static Map<String, SleepDurationCalculator> mapSleepTypeMapper;
 
 
   private static FileSystem localFs;
@@ -113,16 +122,15 @@ public class TestSpeculativeExecOnCluster {
     }
   }
 
-  private static Path TEST_ROOT_DIR =
+  private static final Path TEST_ROOT_DIR =
       new Path("target",
           TestSpeculativeExecOnCluster.class.getName() + "-tmpDir")
           .makeQualified(localFs.getUri(), localFs.getWorkingDirectory());
-  static Path APP_JAR = new Path(TEST_ROOT_DIR, "MRAppJar.jar");
-  private static Path TEST_OUT_DIR =
+  private static final Path APP_JAR = new Path(TEST_ROOT_DIR, "MRAppJar.jar");
+  private static final Path TEST_OUT_DIR =
       new Path(TEST_ROOT_DIR, "test.out.dir");
 
-
-  protected MiniMRYarnCluster mrCluster;
+  private MiniMRYarnCluster mrCluster;
 
   private int myNumMapper;
   private int myNumReduce;
@@ -131,15 +139,42 @@ public class TestSpeculativeExecOnCluster {
   private int myMapSleepCount;
   private int myReduceSleepCount;
   private String chosenSleepCalc;
-  Class<?> estimatorClass;
+  private Class<?> estimatorClass;
+
 
   /**
    * The test cases take a long time to run all the estimators against all the
    * cases. We skip the legacy estimators to reduce the execution time.
    */
-  List<Class<?>> ignoredEstimators;
-  List<String> ignoredTests;
+  private List<String> ignoredTests;
 
+
+  @Parameterized.Parameters(name = "{index}: TaskEstimator(EstimatorClass {0})")
+  public static Collection<Object[]> getTestParameters() {
+    List<String> ignoredTests = Arrays.asList(new String[] {
+        "stalled_run",
+        "slowing_run",
+        "step_stalled_run"
+    });
+    return Arrays.asList(new Object[][] {
+        {SimpleExponentialTaskRuntimeEstimator.class, ignoredTests,
+            NUM_MAP_DEFAULT, NUM_REDUCE_DEFAULT},
+        {LegacyTaskRuntimeEstimator.class, ignoredTests,
+            NUM_MAP_DEFAULT, NUM_REDUCE_DEFAULT}
+    });
+  }
+
+  public TestSpeculativeExecOnCluster(
+      Class<? extends TaskRuntimeEstimator> estimatorKlass,
+      List<String> testToIgnore,
+      Integer numMapper,
+      Integer numReduce) {
+    this.ignoredTests = testToIgnore;
+    this.estimatorClass = estimatorKlass;
+    this.myNumMapper = numMapper;
+    this.myNumReduce = numReduce;
+
+  }
 
   @Before
   public void setup() throws IOException {
@@ -162,26 +197,11 @@ public class TestSpeculativeExecOnCluster {
     // workaround the absent public distcache.
     localFs.copyFromLocalFile(new Path(MiniMRYarnCluster.APPJAR), APP_JAR);
     localFs.setPermission(APP_JAR, new FsPermission("700"));
-
-    myNumMapper = NUM_MAP_DEFAULT;
-    myNumReduce = NUM_REDUCE_DEFAULT;
     myMapSleepTime = MAP_SLEEP_TIME_DEFAULT;
     myReduceSleepTime = REDUCE_SLEEP_TIME_DEFAULT;
     myMapSleepCount = MAP_SLEEP_COUNT_DEFAULT;
     myReduceSleepCount = REDUCE_SLEEP_COUNT_DEFAULT;
-
     chosenSleepCalc = MAP_SLEEP_CALCULATOR_TYPE_DEFAULT;
-
-    ignoredEstimators = Arrays.asList(new Class<?>[]{
-        LegacyTaskRuntimeEstimator.class,
-        ExponentiallySmoothedTaskRuntimeEstimator.class
-    });
-
-    ignoredTests = Arrays.asList(new String[] {
-        "stalled_run",
-        "slowing_run",
-        "step_stalled_run"
-    });
   }
 
   @After
@@ -192,6 +212,9 @@ public class TestSpeculativeExecOnCluster {
     }
   }
 
+  /**
+   * Overrides default behavior of Partitioner for testing.
+   */
   public static class SpeculativeSleepJobPartitioner extends
       Partitioner<IntWritable, NullWritable> {
     public int getPartition(IntWritable k, NullWritable v, int numPartitions) {
@@ -199,15 +222,25 @@ public class TestSpeculativeExecOnCluster {
     }
   }
 
+  /**
+   * Overrides default behavior of InputSplit for testing.
+   */
   public static class EmptySplit extends InputSplit implements Writable {
     public void write(DataOutput out) throws IOException { }
     public void readFields(DataInput in) throws IOException { }
-    public long getLength() { return 0L; }
-    public String[] getLocations() { return new String[0]; }
+    public long getLength() {
+      return 0L;
+    }
+    public String[] getLocations() {
+      return new String[0];
+    }
   }
 
+  /**
+   * Input format that sleeps after updating progress.
+   */
   public static class SpeculativeSleepInputFormat
-      extends InputFormat<IntWritable,IntWritable> {
+      extends InputFormat<IntWritable, IntWritable> {
 
     public List<InputSplit> getSplits(JobContext jobContext) {
       List<InputSplit> ret = new ArrayList<InputSplit>();
@@ -219,19 +252,22 @@ public class TestSpeculativeExecOnCluster {
       return ret;
     }
 
-    public RecordReader<IntWritable,IntWritable> createRecordReader(
+    public RecordReader<IntWritable, IntWritable> createRecordReader(
         InputSplit ignored, TaskAttemptContext taskContext)
         throws IOException {
       Configuration conf = taskContext.getConfiguration();
       final int count = conf.getInt(MAP_SLEEP_COUNT, MAP_SLEEP_COUNT_DEFAULT);
-      if (count < 0) throw new IOException("Invalid map count: " + count);
+      if (count < 0) {
+        throw new IOException("Invalid map count: " + count);
+      }
       final int redcount = conf.getInt(REDUCE_SLEEP_COUNT,
           REDUCE_SLEEP_COUNT_DEFAULT);
-      if (redcount < 0)
+      if (redcount < 0) {
         throw new IOException("Invalid reduce count: " + redcount);
+      }
       final int emitPerMapTask = (redcount * taskContext.getNumReduceTasks());
 
-      return new RecordReader<IntWritable,IntWritable>() {
+      return new RecordReader<IntWritable, IntWritable>() {
         private int records = 0;
         private int emitCount = 0;
         private IntWritable key = null;
@@ -255,8 +291,12 @@ public class TestSpeculativeExecOnCluster {
           value.set(emit);
           return records++ < count;
         }
-        public IntWritable getCurrentKey() { return key; }
-        public IntWritable getCurrentValue() { return value; }
+        public IntWritable getCurrentKey() {
+          return key;
+        }
+        public IntWritable getCurrentValue() {
+          return value;
+        }
         public void close() throws IOException { }
         public float getProgress() throws IOException {
           return count == 0 ? 100 : records / ((float)count);
@@ -266,7 +306,7 @@ public class TestSpeculativeExecOnCluster {
   }
 
   /**
-   * Interface used to simulate different progress rates of the tasks
+   * Interface used to simulate different progress rates of the tasks.
    */
   public interface SleepDurationCalculator {
     long calcSleepDuration(TaskAttemptID taId, int currCount, int totalCount,
@@ -274,12 +314,12 @@ public class TestSpeculativeExecOnCluster {
   }
 
   /**
-   * All tasks have the same progress
+   * All tasks have the same progress.
    */
   public static class SleepDurationCalcImpl implements SleepDurationCalculator {
 
-    double threshold = 1.0;
-    double slowFactor = 1.0;
+    private double threshold = 1.0;
+    private double slowFactor = 1.0;
 
     SleepDurationCalcImpl() {
 
@@ -304,8 +344,8 @@ public class TestSpeculativeExecOnCluster {
   public static class SlowingSleepDurationCalcImpl implements
       SleepDurationCalculator {
 
-    double threshold = 0.4;
-    double slowFactor = 1.2;
+    private double threshold = 0.4;
+    private double slowFactor = 1.2;
 
     SlowingSleepDurationCalcImpl() {
 
@@ -347,11 +387,14 @@ public class TestSpeculativeExecOnCluster {
   }
 
 
+  /**
+   * Emulates the behavior with a step change in the progress.
+   */
   public static class StepStalledSleepDurationCalcImpl implements
       SleepDurationCalculator {
 
-    double threshold = 0.4;
-    double slowFactor = 10000;
+    private double threshold = 0.4;
+    private double slowFactor = 10000;
 
     StepStalledSleepDurationCalcImpl() {
 
@@ -377,13 +420,16 @@ public class TestSpeculativeExecOnCluster {
   public static class DynamicSleepDurationCalcImpl implements
       SleepDurationCalculator {
 
-    double thresholds[];
-    double slowFactors[];
+    private double[] thresholds;
+    private double[] slowFactors;
 
     DynamicSleepDurationCalcImpl() {
-      thresholds = new double[]{0.1, 0.25, 0.4, 0.5, 0.6, 0.65, 0.7, 0.8, 0.9};
-      slowFactors = new double[]{2.0, 4.0, 5.0, 6.0, 10.0, 15.0, 20.0, 25.0,
-          30.0};
+      thresholds = new double[] {
+          0.1, 0.25, 0.4, 0.5, 0.6, 0.65, 0.7, 0.8, 0.9
+      };
+      slowFactors = new double[] {
+          2.0, 4.0, 5.0, 6.0, 10.0, 15.0, 20.0, 25.0, 30.0
+      };
     }
 
     public long calcSleepDuration(TaskAttemptID taId, int currCount,
@@ -419,7 +465,7 @@ public class TestSpeculativeExecOnCluster {
     private long mapSleepDuration = MAP_SLEEP_TIME_DEFAULT;
     private int mapSleepCount = 1;
     private int count = 0;
-    SleepDurationCalculator sleepCalc = new SleepDurationCalcImpl();
+    private SleepDurationCalculator sleepCalc = new SleepDurationCalcImpl();
 
     protected void setup(Context context)
         throws IOException, InterruptedException {
@@ -427,7 +473,7 @@ public class TestSpeculativeExecOnCluster {
       this.mapSleepCount =
           conf.getInt(MAP_SLEEP_COUNT, mapSleepCount);
       this.mapSleepDuration = mapSleepCount == 0 ? 0 :
-          conf.getLong(MAP_SLEEP_TIME , MAP_SLEEP_TIME_DEFAULT) / mapSleepCount;
+          conf.getLong(MAP_SLEEP_TIME, MAP_SLEEP_TIME_DEFAULT) / mapSleepCount;
       this.sleepCalc =
           mapSleepTypeMapper.get(conf.get(MAP_SLEEP_CALCULATOR_TYPE,
               MAP_SLEEP_CALCULATOR_TYPE_DEFAULT));
@@ -458,6 +504,9 @@ public class TestSpeculativeExecOnCluster {
     }
   }
 
+  /**
+   * Implementation of the reducer task for testing.
+   */
   public static class SpeculativeSleepReducer
       extends Reducer<IntWritable, NullWritable, NullWritable, NullWritable> {
 
@@ -482,7 +531,6 @@ public class TestSpeculativeExecOnCluster {
         context.setStatus("Sleeping... (" +
             (reduceSleepDuration * (reduceSleepCount - count)) + ") ms left");
         Thread.sleep(reduceSleepDuration);
-
       } catch (InterruptedException ex) {
         throw (IOException) new IOException(
             "Interrupted while sleeping").initCause(ex);
@@ -497,10 +545,10 @@ public class TestSpeculativeExecOnCluster {
    */
   class EstimatorMetricsPair {
 
-    Class<?> estimatorClass;
-    int expectedMapTasks;
-    int expectedReduceTasks;
-    boolean speculativeEstimator;
+    private Class<?> estimatorClass;
+    private int expectedMapTasks;
+    private int expectedReduceTasks;
+    private boolean speculativeEstimator;
 
     EstimatorMetricsPair(Class<?> estimatorClass, int mapTasks, int reduceTasks,
         boolean isToSpeculate) {
@@ -571,10 +619,11 @@ public class TestSpeculativeExecOnCluster {
      */
     chosenSleepCalc = "dynamic_slowing_run";
 
-    if (ignoredTests.contains(chosenSleepCalc))
+    if (ignoredTests.contains(chosenSleepCalc)) {
       return;
+    }
 
-    EstimatorMetricsPair estimatorPairs[] = new EstimatorMetricsPair[]{
+    EstimatorMetricsPair[] estimatorPairs = new EstimatorMetricsPair[] {
         new EstimatorMetricsPair(SimpleExponentialTaskRuntimeEstimator.class,
             myNumMapper, myNumReduce, true),
         new EstimatorMetricsPair(LegacyTaskRuntimeEstimator.class,
@@ -585,8 +634,7 @@ public class TestSpeculativeExecOnCluster {
     };
 
     for (EstimatorMetricsPair specEstimator : estimatorPairs) {
-      estimatorClass = specEstimator.estimatorClass;
-      if(ignoredEstimators.contains(estimatorClass)) {
+      if (!estimatorClass.equals(specEstimator.estimatorClass)) {
         continue;
       }
       LOG.info("+++ Dynamic Slow Progress testing against " + estimatorClass
@@ -632,10 +680,11 @@ public class TestSpeculativeExecOnCluster {
      */
     chosenSleepCalc = "slowing_run";
 
-    if (ignoredTests.contains(chosenSleepCalc))
+    if (ignoredTests.contains(chosenSleepCalc)) {
       return;
+    }
 
-    EstimatorMetricsPair estimatorPairs[] = new EstimatorMetricsPair[]{
+    EstimatorMetricsPair[] estimatorPairs = new EstimatorMetricsPair[] {
         new EstimatorMetricsPair(SimpleExponentialTaskRuntimeEstimator.class,
             myNumMapper, myNumReduce, false),
         new EstimatorMetricsPair(LegacyTaskRuntimeEstimator.class,
@@ -646,8 +695,7 @@ public class TestSpeculativeExecOnCluster {
     };
 
     for (EstimatorMetricsPair specEstimator : estimatorPairs) {
-      estimatorClass = specEstimator.estimatorClass;
-      if (ignoredEstimators.contains(estimatorClass)) {
+      if (!estimatorClass.equals(specEstimator.estimatorClass)) {
         continue;
       }
       LOG.info("+++ Linear Slow Progress Non Speculative testing against "
@@ -689,9 +737,10 @@ public class TestSpeculativeExecOnCluster {
      * -----------------------------------------------------------------
      */
     chosenSleepCalc = "step_stalled_run";
-    if (ignoredTests.contains(chosenSleepCalc))
+    if (ignoredTests.contains(chosenSleepCalc)) {
       return;
-    EstimatorMetricsPair estimatorPairs[] = new EstimatorMetricsPair[]{
+    }
+    EstimatorMetricsPair[] estimatorPairs = new EstimatorMetricsPair[] {
         new EstimatorMetricsPair(SimpleExponentialTaskRuntimeEstimator.class,
             myNumMapper, myNumReduce, true),
         new EstimatorMetricsPair(LegacyTaskRuntimeEstimator.class,
@@ -702,8 +751,7 @@ public class TestSpeculativeExecOnCluster {
     };
 
     for (EstimatorMetricsPair specEstimator : estimatorPairs) {
-      estimatorClass = specEstimator.estimatorClass;
-      if (ignoredEstimators.contains(estimatorClass)) {
+      if (!estimatorClass.equals(specEstimator.estimatorClass)) {
         continue;
       }
       LOG.info("+++ Stalled Progress testing against "
@@ -746,9 +794,10 @@ public class TestSpeculativeExecOnCluster {
      */
     chosenSleepCalc = "stalled_run";
 
-    if (ignoredTests.contains(chosenSleepCalc))
+    if (ignoredTests.contains(chosenSleepCalc)) {
       return;
-    EstimatorMetricsPair estimatorPairs[] = new EstimatorMetricsPair[]{
+    }
+    EstimatorMetricsPair[] estimatorPairs = new EstimatorMetricsPair[] {
         new EstimatorMetricsPair(SimpleExponentialTaskRuntimeEstimator.class,
             myNumMapper, myNumReduce, true),
         new EstimatorMetricsPair(LegacyTaskRuntimeEstimator.class,
@@ -759,8 +808,7 @@ public class TestSpeculativeExecOnCluster {
     };
 
     for (EstimatorMetricsPair specEstimator : estimatorPairs) {
-      estimatorClass = specEstimator.estimatorClass;
-      if (ignoredEstimators.contains(estimatorClass)) {
+      if (!estimatorClass.equals(specEstimator.estimatorClass)) {
         continue;
       }
       LOG.info("+++ Stalled Progress testing against "
@@ -804,10 +852,11 @@ public class TestSpeculativeExecOnCluster {
       return;
     }
 
-    if (ignoredTests.contains(chosenSleepCalc))
+    if (ignoredTests.contains(chosenSleepCalc)) {
       return;
+    }
 
-    EstimatorMetricsPair estimatorPairs[] = new EstimatorMetricsPair[]{
+    EstimatorMetricsPair[] estimatorPairs = new EstimatorMetricsPair[] {
         new EstimatorMetricsPair(LegacyTaskRuntimeEstimator.class,
             myNumMapper, myNumReduce, true),
         new EstimatorMetricsPair(SimpleExponentialTaskRuntimeEstimator.class,
@@ -818,8 +867,7 @@ public class TestSpeculativeExecOnCluster {
     };
 
     for (EstimatorMetricsPair specEstimator : estimatorPairs) {
-      estimatorClass = specEstimator.estimatorClass;
-      if (ignoredEstimators.contains(estimatorClass)) {
+      if (!estimatorClass.equals(specEstimator.estimatorClass)) {
         continue;
       }
       LOG.info("+++ No Speculation testing against "
@@ -870,7 +918,7 @@ public class TestSpeculativeExecOnCluster {
     FileInputFormat.addInputPath(job, new Path("ignored"));
     // Delete output directory if it exists.
     try {
-      localFs.delete(TEST_OUT_DIR,true);
+      localFs.delete(TEST_OUT_DIR, true);
     } catch (IOException e) {
       // ignore
     }
