@@ -147,25 +147,27 @@ public class JobHistory extends AbstractService implements HistoryContext {
   @Override
   protected void serviceStop() throws Exception {
     LOG.info("Stopping JobHistory");
+    InterruptedException ex = null;
     if (scheduledExecutor != null) {
       LOG.info("Stopping History Cleaner/Move To Done");
       scheduledExecutor.shutdown();
-      boolean interrupted = false;
-      long currentTime = System.currentTimeMillis();
-      while (!scheduledExecutor.isShutdown()
-          && System.currentTimeMillis() > currentTime + 1000l && !interrupted) {
-        try {
-          Thread.sleep(20);
-        } catch (InterruptedException e) {
-          interrupted = true;
+      int retryCnt = 50;
+      try {
+        while (!scheduledExecutor.awaitTermination(20,
+            TimeUnit.MILLISECONDS)) {
+          if (--retryCnt == 0) {
+            scheduledExecutor.shutdownNow();
+            break;
+          }
         }
-      }
-      if (!scheduledExecutor.isShutdown()) {
+      } catch (InterruptedException iex) {
         LOG.warn("HistoryCleanerService/move to done shutdown may not have " +
-        		"succeeded, Forcing a shutdown");
+            "succeeded, Forcing a shutdown", iex);
+        ex = iex;
         scheduledExecutor.shutdownNow();
       }
     }
+    // stop the other services;
     if (storage != null && storage instanceof Service) {
       ((Service) storage).stop();
     }
@@ -173,6 +175,9 @@ public class JobHistory extends AbstractService implements HistoryContext {
       hsManager.stop();
     }
     super.serviceStop();
+    if (ex != null) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   public JobHistory() {

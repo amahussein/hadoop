@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.mapred;
 
+import java.util.Arrays;
+import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -26,12 +28,19 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.MRJobConfig;
+import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import static org.junit.Assert.*;
 
@@ -44,67 +53,132 @@ import static org.junit.Assert.*;
  * framework's merge on the reduce side will merge the partitions created to
  * generate the final output which is sorted on the key.
  */
+@RunWith(Parameterized.class)
 public class TestMRIntermediateDataEncryption {
   // Where MR job's input will reside.
   private static final Path INPUT_DIR = new Path("/test/input");
   // Where output goes.
   private static final Path OUTPUT = new Path("/test/output");
+  private static final int NUM_LINES = 1000;
+  private static MiniMRClientCluster mrCluster = null;
+  private static MiniDFSCluster dfsCluster = null;
+  private static final int NUM_NODES = 2;
 
-  @Test
-  public void testSingleReducer() throws Exception {
-    doEncryptionTest(3, 1, 2, false);
+  private final String testTitle;
+  private final int numMappers;
+  private final int numReducers;
+  private final boolean isUber;
+  private FileSystem fileSystem = null;
+
+  @Parameterized.Parameters(
+      name = "{index}: TestMRIntermediateDataEncryption.{0} .. "
+          + "mappers:{1}, reducers:{2}, isUber:{3})")
+  public static Collection<Object[]> getTestParameters() {
+    return Arrays.asList(new Object[][]{
+        {"testSingleReducer", 3, 1, false},
+        {"testUberMode", 3, 1, true},
+        {"testMultipleMapsPerNode", 8, 1, false},
+        {"testMultipleReducers", 2, 4, false}
+    });
   }
 
-  @Test
-  public void testUberMode() throws Exception {
-    doEncryptionTest(3, 1, 2, true);
+  /**
+   * Initialized the parametrized JUnit test.
+   * @param testName the name of the unit test to be executed.
+   * @param mappers number of mappers in the tests.
+   * @param reducers number of the reducers.
+   * @param uberEnabled boolean flag for isUber
+   */
+  public TestMRIntermediateDataEncryption(String testName, int mappers,
+      int reducers, boolean uberEnabled) {
+    this.testTitle = testName;
+    this.numMappers = mappers;
+    this.numReducers = reducers;
+    this.isUber = uberEnabled;
   }
 
-  @Test
-  public void testMultipleMapsPerNode() throws Exception {
-    doEncryptionTest(8, 1, 2, false);
+  @BeforeClass
+  public static void setupClass() throws Exception {
+    Configuration conf = new Configuration();
+    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE, false);
+    // Start the mini-MR and mini-DFS clusters
+    dfsCluster = new MiniDFSCluster.Builder(conf)
+        .numDataNodes(NUM_NODES).build();
+    mrCluster = MiniMRClientClusterFactory.create(
+        TestMRIntermediateDataEncryption.class,
+        NUM_NODES, conf);
   }
 
-  @Test
-  public void testMultipleReducers() throws Exception {
-    doEncryptionTest(2, 4, 2, false);
-  }
-
-  public void doEncryptionTest(int numMappers, int numReducers, int numNodes,
-                               boolean isUber) throws Exception {
-    doEncryptionTest(numMappers, numReducers, numNodes, 1000, isUber);
-  }
-
-  public void doEncryptionTest(int numMappers, int numReducers, int numNodes,
-                               int numLines, boolean isUber) throws Exception {
-    MiniDFSCluster dfsCluster = null;
-    MiniMRClientCluster mrCluster = null;
-    FileSystem fileSystem = null;
-    try {
-      Configuration conf = new Configuration();
-      // Start the mini-MR and mini-DFS clusters
-
-      dfsCluster = new MiniDFSCluster.Builder(conf)
-          .numDataNodes(numNodes).build();
-      fileSystem = dfsCluster.getFileSystem();
-      mrCluster = MiniMRClientClusterFactory.create(this.getClass(),
-                                                 numNodes, conf);
-      // Generate input.
-      createInput(fileSystem, numMappers, numLines);
-      // Run the test.
-      runMergeTest(new JobConf(mrCluster.getConfig()), fileSystem,
-              numMappers, numReducers, numLines, isUber);
-    } finally {
-      if (dfsCluster != null) {
-        dfsCluster.shutdown();
-      }
-      if (mrCluster != null) {
-        mrCluster.stop();
-      }
+  @AfterClass
+  public static void tearDown() throws IOException {
+    if (dfsCluster != null) {
+      dfsCluster.shutdown();
+    }
+    if (mrCluster != null) {
+      mrCluster.stop();
     }
   }
 
-  private void createInput(FileSystem fs, int numMappers, int numLines) throws Exception {
+  @Before
+  public void setup() throws Exception {
+    fileSystem = dfsCluster.getFileSystem();
+    // Generate input.
+    createInput(fileSystem, numMappers, NUM_LINES);
+  }
+
+  @After
+  public void cleanup() throws IOException {
+    if (fileSystem != null) {
+      fileSystem.delete(INPUT_DIR, true);
+      fileSystem.delete(OUTPUT, true);
+      fileSystem.close();
+    }
+  }
+
+  @Test
+  public void testMerge() throws Exception {
+    JobConf job = new JobConf(mrCluster.getConfig());
+    fileSystem.delete(OUTPUT, true);
+    job.setJobName("Test");
+    JobClient client = new JobClient(job);
+    RunningJob submittedJob = null;
+    FileInputFormat.setInputPaths(job, INPUT_DIR);
+    FileOutputFormat.setOutputPath(job, OUTPUT);
+    job.set("mapreduce.output.textoutputformat.separator", " ");
+    job.setInputFormat(TextInputFormat.class);
+    job.setMapOutputKeyClass(Text.class);
+    job.setMapOutputValueClass(Text.class);
+    job.setOutputKeyClass(Text.class);
+    job.setOutputValueClass(Text.class);
+    job.setMapperClass(TestMRIntermediateDataEncryption.MyMapper.class);
+    job.setPartitionerClass(TestMRIntermediateDataEncryption.MyPartitioner.class);
+    job.setOutputFormat(TextOutputFormat.class);
+    job.setNumReduceTasks(numReducers);
+    job.setInt("mapreduce.map.maxattempts", 1);
+    job.setInt("mapreduce.reduce.maxattempts", 1);
+    job.setInt("mapred.test.num_lines", NUM_LINES);
+    if (isUber) {
+      job.setBoolean("mapreduce.job.ubertask.enable", true);
+    }
+    job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
+    try {
+      submittedJob = client.submitJob(job);
+      try {
+        if (!client.monitorAndPrintJob(job, submittedJob)) {
+          throw new IOException("Job failed!");
+        }
+      } catch(InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+    } catch(IOException ioe) {
+      System.err.println("Job failed with: " + ioe);
+    } finally {
+      verifyOutput(fileSystem, numMappers, NUM_LINES);
+    }
+  }
+
+  private void createInput(FileSystem fs, int numMappers, int numLines)
+      throws Exception {
     fs.delete(INPUT_DIR, true);
     for (int i = 0; i < numMappers; i++) {
       OutputStream os = fs.create(new Path(INPUT_DIR, "input_" + i + ".txt"));
@@ -119,51 +193,9 @@ public class TestMRIntermediateDataEncryption {
     }
   }
 
-  private void runMergeTest(JobConf job, FileSystem fileSystem, int
-          numMappers, int numReducers, int numLines, boolean isUber)
-          throws Exception {
-    fileSystem.delete(OUTPUT, true);
-    job.setJobName("Test");
-    JobClient client = new JobClient(job);
-    RunningJob submittedJob = null;
-    FileInputFormat.setInputPaths(job, INPUT_DIR);
-    FileOutputFormat.setOutputPath(job, OUTPUT);
-    job.set("mapreduce.output.textoutputformat.separator", " ");
-    job.setInputFormat(TextInputFormat.class);
-    job.setMapOutputKeyClass(Text.class);
-    job.setMapOutputValueClass(Text.class);
-    job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(Text.class);
-    job.setMapperClass(MyMapper.class);
-    job.setPartitionerClass(MyPartitioner.class);
-    job.setOutputFormat(TextOutputFormat.class);
-    job.setNumReduceTasks(numReducers);
-
-    job.setInt("mapreduce.map.maxattempts", 1);
-    job.setInt("mapreduce.reduce.maxattempts", 1);
-    job.setInt("mapred.test.num_lines", numLines);
-    if (isUber) {
-      job.setBoolean("mapreduce.job.ubertask.enable", true);
-    }
-    job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
-    try {
-      submittedJob = client.submitJob(job);
-      try {
-        if (! client.monitorAndPrintJob(job, submittedJob)) {
-          throw new IOException("Job failed!");
-        }
-      } catch(InterruptedException ie) {
-        Thread.currentThread().interrupt();
-      }
-    } catch(IOException ioe) {
-      System.err.println("Job failed with: " + ioe);
-    } finally {
-      verifyOutput(submittedJob, fileSystem, numMappers, numLines);
-    }
-  }
-
-  private void verifyOutput(RunningJob submittedJob, FileSystem fileSystem, int numMappers, int numLines)
-    throws Exception {
+  private void verifyOutput(FileSystem fileSystem,
+      int numMappers, int numLines)
+      throws Exception {
     FSDataInputStream dis = null;
     long numValidRecords = 0;
     long numInvalidRecords = 0;
@@ -255,12 +287,12 @@ public class TestMRIntermediateDataEncryption {
       int keyValue = 0;
       try {
         keyValue = Integer.parseInt(key.toString());
-      } catch(NumberFormatException nfe) {
+      } catch (NumberFormatException nfe) {
         keyValue = 0;
       }
-      int partitionNumber = (numPartitions*(Math.max(0, keyValue-1)))/job.getInt("mapred.test.num_lines", 10000);
+      int partitionNumber = (numPartitions * (Math.max(0, keyValue - 1))) / job
+          .getInt("mapred.test.num_lines", 10000);
       return partitionNumber;
     }
   }
-
 }
