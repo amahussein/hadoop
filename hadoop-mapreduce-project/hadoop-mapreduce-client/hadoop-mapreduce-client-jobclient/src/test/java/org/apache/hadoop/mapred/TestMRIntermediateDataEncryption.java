@@ -178,6 +178,7 @@ public class TestMRIntermediateDataEncryption {
       assertTrue(submittedJob.isComplete());
       assertTrue(submittedJob.isSuccessful());
     } catch(IOException ioe) {
+      ioe.printStackTrace(System.err);
       System.err.println("Job failed with: " + ioe);
     } finally {
       verifyOutput(fs, numMappers, NUM_LINES);
