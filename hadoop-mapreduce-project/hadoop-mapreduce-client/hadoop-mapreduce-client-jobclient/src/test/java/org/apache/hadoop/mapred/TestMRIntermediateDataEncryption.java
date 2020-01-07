@@ -17,8 +17,6 @@
  */
 package org.apache.hadoop.mapred;
 
-import java.util.Arrays;
-import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -30,9 +28,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -60,46 +56,19 @@ public class TestMRIntermediateDataEncryption {
   // Where output goes.
   private static final Path OUTPUT = new Path("/test/output");
   private static final int NUM_LINES = 100;
-  private static MiniMRClientCluster mrCluster = null;
-  private static MiniDFSCluster dfsCluster = null;
+
   private static final int NUM_NODES = 2;
   private static final boolean ENABLE_JOB_CLEANER = false;
 
-  private final String testTitle;
-  private final int numMappers;
-  private final int numReducers;
-  private final boolean isUber;
+  private int numMappers;
+  private int numReducers;
+  private boolean isUber;
   private FileSystem fs = null;
+  private MiniMRClientCluster mrCluster = null;
+  private MiniDFSCluster dfsCluster = null;
 
-  @Parameterized.Parameters(
-      name = "{index}: TestMRIntermediateDataEncryption.{0} .. "
-          + "mappers:{1}, reducers:{2}, isUber:{3})")
-  public static Collection<Object[]> getTestParameters() {
-    return Arrays.asList(new Object[][]{
-        {"testSingleReducer", 3, 1, false}/*,
-        {"testUberMode", 3, 1, true},
-        {"testMultipleMapsPerNode", 4, 1, false},
-        {"testMultipleReducers", 2, 4, false}*/
-    });
-  }
-
-  /**
-   * Initialized the parametrized JUnit test.
-   * @param testName the name of the unit test to be executed.
-   * @param mappers number of mappers in the tests.
-   * @param reducers number of the reducers.
-   * @param uberEnabled boolean flag for isUber
-   */
-  public TestMRIntermediateDataEncryption(String testName, int mappers,
-      int reducers, boolean uberEnabled) {
-    this.testTitle = testName;
-    this.numMappers = mappers;
-    this.numReducers = reducers;
-    this.isUber = uberEnabled;
-  }
-
-  @BeforeClass
-  public static void setupClass() throws Exception {
+  @Before
+  public void setup() throws Exception {
     Configuration conf = new Configuration();
     conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
         ENABLE_JOB_CLEANER);
@@ -109,20 +78,6 @@ public class TestMRIntermediateDataEncryption {
     mrCluster = MiniMRClientClusterFactory.create(
         TestMRIntermediateDataEncryption.class,
         NUM_NODES, conf);
-  }
-
-  @AfterClass
-  public static void tearDown() throws IOException {
-    if (mrCluster != null) {
-      mrCluster.stop();
-    }
-    if (dfsCluster != null) {
-      dfsCluster.shutdown();
-    }
-  }
-
-  @Before
-  public void setup() throws Exception {
     fs = dfsCluster.getFileSystem();
     if (fs.exists(INPUT_DIR) && !fs.delete(INPUT_DIR, true)) {
       throw new IOException("Could not delete " + INPUT_DIR);
@@ -130,8 +85,6 @@ public class TestMRIntermediateDataEncryption {
     if (fs.exists(OUTPUT) && !fs.delete(OUTPUT, true)) {
       throw new IOException("Could not delete " + OUTPUT);
     }
-    // Generate input.
-    createInput(fs, numMappers, NUM_LINES);
   }
 
   @After
@@ -143,11 +96,61 @@ public class TestMRIntermediateDataEncryption {
       if (fs.exists(INPUT_DIR)) {
         fs.delete(INPUT_DIR, true);
       }
+      fs.close();
     }
+    if (mrCluster != null) {
+      mrCluster.stop();
+    }
+    if (dfsCluster != null) {
+      dfsCluster.shutdown();
+    }
+    fs = null;
+    mrCluster = null;
+    dfsCluster = null;
   }
 
-  @Test(timeout=150000)
-  public void testMerge() throws Exception {
+
+  @Test(timeout=600000)
+  public void testSingleReducer() throws Exception {
+    numMappers = 3;
+    numReducers = 1;
+    isUber = false;
+    // Generate input.
+    createInput(fs, numMappers, NUM_LINES);
+    doEncryptionTest();
+  }
+
+  @Test(timeout=600000)
+  public void testUberMode() throws Exception {
+    numMappers = 3;
+    numReducers = 1;
+    isUber = true;
+    // Generate input.
+    createInput(fs, numMappers, NUM_LINES);
+    doEncryptionTest();
+  }
+
+  @Test(timeout=600000)
+  public void testMultipleMapsPerNode() throws Exception {
+    numMappers = 8;
+    numReducers = 1;
+    isUber = false;
+    // Generate input.
+    createInput(fs, numMappers, NUM_LINES);
+    doEncryptionTest();
+  }
+
+  @Test(timeout=600000)
+  public void testMultipleReducers() throws Exception {
+    numMappers = 2;
+    numReducers = 4;
+    isUber = false;
+    // Generate input.
+    createInput(fs, numMappers, NUM_LINES);
+    doEncryptionTest();
+  }
+
+  private void doEncryptionTest() throws Exception {
     JobConf job = new JobConf(mrCluster.getConfig());
     job.setJobName("Test");
     JobClient client = new JobClient(job);
