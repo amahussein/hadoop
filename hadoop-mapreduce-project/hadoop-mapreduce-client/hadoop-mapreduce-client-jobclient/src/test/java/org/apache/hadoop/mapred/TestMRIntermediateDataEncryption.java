@@ -69,7 +69,7 @@ public class TestMRIntermediateDataEncryption {
   private final int numMappers;
   private final int numReducers;
   private final boolean isUber;
-  private FileSystem fileSystem = null;
+  private FileSystem fs = null;
 
   @Parameterized.Parameters(
       name = "{index}: TestMRIntermediateDataEncryption.{0} .. "
@@ -78,7 +78,7 @@ public class TestMRIntermediateDataEncryption {
     return Arrays.asList(new Object[][]{
         {"testSingleReducer", 3, 1, false},
         {"testUberMode", 3, 1, true},
-        {"testMultipleMapsPerNode", 8, 1, false},
+        {"testMultipleMapsPerNode", 4, 1, false},
         {"testMultipleReducers", 2, 4, false}
     });
   }
@@ -123,31 +123,31 @@ public class TestMRIntermediateDataEncryption {
 
   @Before
   public void setup() throws Exception {
-    fileSystem = dfsCluster.getFileSystem();
-    if (fileSystem.exists(INPUT_DIR) && !fileSystem.delete(INPUT_DIR, true)) {
+    fs = dfsCluster.getFileSystem();
+    if (fs.exists(INPUT_DIR) && !fs.delete(INPUT_DIR, true)) {
       throw new IOException("Could not delete " + INPUT_DIR);
     }
-    if (fileSystem.exists(OUTPUT) && !fileSystem.delete(OUTPUT, true)) {
+    if (fs.exists(OUTPUT) && !fs.delete(OUTPUT, true)) {
       throw new IOException("Could not delete " + OUTPUT);
     }
     // Generate input.
-    createInput(fileSystem, numMappers, NUM_LINES);
+    createInput(fs, numMappers, NUM_LINES);
   }
 
   @After
   public void cleanup() throws IOException {
-    if (fileSystem != null) {
-      if (fileSystem.exists(OUTPUT)) {
-        fileSystem.delete(OUTPUT, true);
+    if (fs != null) {
+      if (fs.exists(OUTPUT)) {
+        fs.delete(OUTPUT, true);
       }
-      if (fileSystem.exists(INPUT_DIR)) {
-        fileSystem.delete(INPUT_DIR, true);
+      if (fs.exists(INPUT_DIR)) {
+        fs.delete(INPUT_DIR, true);
       }
-      fileSystem.close();
+      fs.close();
     }
   }
 
-  @Test
+  @Test(timeout=600000)
   public void testMerge() throws Exception {
     JobConf job = new JobConf(mrCluster.getConfig());
     job.setJobName("Test");
@@ -185,13 +185,13 @@ public class TestMRIntermediateDataEncryption {
     } catch(IOException ioe) {
       System.err.println("Job failed with: " + ioe);
     } finally {
-      verifyOutput(fileSystem, numMappers, NUM_LINES);
+      verifyOutput(fs, numMappers, NUM_LINES);
     }
   }
 
-  private void createInput(FileSystem fs, int numMappers, int numLines)
+  private void createInput(FileSystem fs, int mappers, int numLines)
       throws Exception {
-    for (int i = 0; i < numMappers; i++) {
+    for (int i = 0; i < mappers; i++) {
       OutputStream os = fs.create(new Path(INPUT_DIR, "input_" + i + ".txt"));
       Writer writer = new OutputStreamWriter(os);
       for (int j = 0; j < numLines; j++) {
@@ -205,7 +205,7 @@ public class TestMRIntermediateDataEncryption {
   }
 
   private void verifyOutput(FileSystem fileSystem,
-      int numMappers, int numLines)
+      int mappers, int numLines)
       throws Exception {
     FSDataInputStream dis = null;
     long numValidRecords = 0;
@@ -240,7 +240,7 @@ public class TestMRIntermediateDataEncryption {
       }
     }
     // Make sure we got all input records in the output in sorted order.
-    assertEquals((long)(numMappers * numLines), numValidRecords);
+    assertEquals((long)(mappers * numLines), numValidRecords);
     // Make sure there is no extraneous invalid record.
     assertEquals(0, numInvalidRecords);
   }
