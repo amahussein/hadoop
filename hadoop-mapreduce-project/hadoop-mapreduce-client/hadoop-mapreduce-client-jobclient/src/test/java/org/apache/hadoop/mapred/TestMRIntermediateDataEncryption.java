@@ -147,7 +147,7 @@ public class TestMRIntermediateDataEncryption {
     }
   }
 
-  @Test(timeout=600000)
+  @Test(timeout=300000)
   public void testMerge() throws Exception {
     JobConf job = new JobConf(mrCluster.getConfig());
     job.setJobName("Test");
