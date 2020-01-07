@@ -156,12 +156,11 @@ public class TestMRIntermediateDataEncryptionTemp {
         fs.delete(INPUT_DIR, true);
       }
     }
-
-    if (dfsCluster != null) {
-      dfsCluster.shutdown();
-    }
     if (mrCluster != null) {
       mrCluster.stop();
+    }
+    if (dfsCluster != null) {
+      dfsCluster.shutdown();
     }
   }
 
@@ -196,12 +195,11 @@ public class TestMRIntermediateDataEncryptionTemp {
       submittedJob.waitForCompletion();
       assertTrue(submittedJob.isComplete());
       assertTrue(submittedJob.isSuccessful());
+      verifyOutput(fs, numMappers, NUM_LINES);
     } catch(IOException ioe) {
       ioe.printStackTrace(System.err);
       System.err.println("Job failed with: " + ioe);
       throw ioe;
-    } finally {
-      verifyOutput(fs, numMappers, NUM_LINES);
     }
   }
 

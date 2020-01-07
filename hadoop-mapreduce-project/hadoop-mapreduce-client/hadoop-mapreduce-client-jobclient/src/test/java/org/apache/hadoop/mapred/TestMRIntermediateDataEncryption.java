@@ -113,11 +113,11 @@ public class TestMRIntermediateDataEncryption {
 
   @AfterClass
   public static void tearDown() throws IOException {
-    if (dfsCluster != null) {
-      dfsCluster.shutdown();
-    }
     if (mrCluster != null) {
       mrCluster.stop();
+    }
+    if (dfsCluster != null) {
+      dfsCluster.shutdown();
     }
   }
 
@@ -177,11 +177,10 @@ public class TestMRIntermediateDataEncryption {
       submittedJob.waitForCompletion();
       assertTrue(submittedJob.isComplete());
       assertTrue(submittedJob.isSuccessful());
-    } catch(IOException ioe) {
-      ioe.printStackTrace(System.err);
-      System.err.println("Job failed with: " + ioe);
-    } finally {
       verifyOutput(fs, numMappers, NUM_LINES);
+    } catch(IOException ioe) {
+      System.err.println("Job failed with: " + ioe);
+      throw ioe;
     }
   }
 
