@@ -199,6 +199,7 @@ public class TestMRIntermediateDataEncryptionTemp {
     } catch(IOException ioe) {
       ioe.printStackTrace(System.err);
       System.err.println("Job failed with: " + ioe);
+      throw ioe;
     } finally {
       verifyOutput(fs, numMappers, NUM_LINES);
     }
