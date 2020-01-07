@@ -59,10 +59,11 @@ public class TestMRIntermediateDataEncryption {
   private static final Path INPUT_DIR = new Path("/test/input");
   // Where output goes.
   private static final Path OUTPUT = new Path("/test/output");
-  private static final int NUM_LINES = 1000;
+  private static final int NUM_LINES = 100;
   private static MiniMRClientCluster mrCluster = null;
   private static MiniDFSCluster dfsCluster = null;
   private static final int NUM_NODES = 2;
+  private static final boolean ENABLE_JOB_CLEANER = false;
 
   private final String testTitle;
   private final int numMappers;
@@ -100,7 +101,8 @@ public class TestMRIntermediateDataEncryption {
   @BeforeClass
   public static void setupClass() throws Exception {
     Configuration conf = new Configuration();
-    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE, false);
+    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
+        ENABLE_JOB_CLEANER);
     // Start the mini-MR and mini-DFS clusters
     dfsCluster = new MiniDFSCluster.Builder(conf)
         .numDataNodes(NUM_NODES).build();
@@ -122,6 +124,12 @@ public class TestMRIntermediateDataEncryption {
   @Before
   public void setup() throws Exception {
     fileSystem = dfsCluster.getFileSystem();
+    if (fileSystem.exists(INPUT_DIR) && !fileSystem.delete(INPUT_DIR, true)) {
+      throw new IOException("Could not delete " + INPUT_DIR);
+    }
+    if (fileSystem.exists(OUTPUT) && !fileSystem.delete(OUTPUT, true)) {
+      throw new IOException("Could not delete " + OUTPUT);
+    }
     // Generate input.
     createInput(fileSystem, numMappers, NUM_LINES);
   }
@@ -129,8 +137,12 @@ public class TestMRIntermediateDataEncryption {
   @After
   public void cleanup() throws IOException {
     if (fileSystem != null) {
-      fileSystem.delete(INPUT_DIR, true);
-      fileSystem.delete(OUTPUT, true);
+      if (fileSystem.exists(OUTPUT)) {
+        fileSystem.delete(OUTPUT, true);
+      }
+      if (fileSystem.exists(INPUT_DIR)) {
+        fileSystem.delete(INPUT_DIR, true);
+      }
       fileSystem.close();
     }
   }
@@ -138,7 +150,6 @@ public class TestMRIntermediateDataEncryption {
   @Test
   public void testMerge() throws Exception {
     JobConf job = new JobConf(mrCluster.getConfig());
-    fileSystem.delete(OUTPUT, true);
     job.setJobName("Test");
     JobClient client = new JobClient(job);
     RunningJob submittedJob = null;
@@ -151,7 +162,8 @@ public class TestMRIntermediateDataEncryption {
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(Text.class);
     job.setMapperClass(TestMRIntermediateDataEncryption.MyMapper.class);
-    job.setPartitionerClass(TestMRIntermediateDataEncryption.MyPartitioner.class);
+    job.setPartitionerClass(
+        TestMRIntermediateDataEncryption.MyPartitioner.class);
     job.setOutputFormat(TextOutputFormat.class);
     job.setNumReduceTasks(numReducers);
     job.setInt("mapreduce.map.maxattempts", 1);
@@ -179,7 +191,6 @@ public class TestMRIntermediateDataEncryption {
 
   private void createInput(FileSystem fs, int numMappers, int numLines)
       throws Exception {
-    fs.delete(INPUT_DIR, true);
     for (int i = 0; i < numMappers; i++) {
       OutputStream os = fs.create(new Path(INPUT_DIR, "input_" + i + ".txt"));
       Writer writer = new OutputStreamWriter(os);
@@ -255,7 +266,7 @@ public class TestMRIntermediateDataEncryption {
         String record = value.toString();
         int blankPos = record.indexOf(" ");
         keyText.set(record.substring(0, blankPos));
-        valueText.set(record.substring(blankPos+1));
+        valueText.set(record.substring(blankPos + 1));
         output.collect(keyText, valueText);
       }
 
