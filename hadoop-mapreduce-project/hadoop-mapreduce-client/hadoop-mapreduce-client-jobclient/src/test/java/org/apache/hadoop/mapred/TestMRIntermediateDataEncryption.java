@@ -186,8 +186,8 @@ public class TestMRIntermediateDataEncryption {
     job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
     submittedJob = client.submitJob(job);
     submittedJob.waitForCompletion();
-    assertTrue(submittedJob.isComplete());
-    assertTrue(submittedJob.isSuccessful());
+    assertTrue("The submitted job is completed", submittedJob.isComplete());
+    assertTrue("The submitted job is successful", submittedJob.isSuccessful());
     verifyOutput(fs, numMappers, NUM_LINES);
     client.close();
     try {
