@@ -49,7 +49,6 @@ import static org.junit.Assert.*;
  * framework's merge on the reduce side will merge the partitions created to
  * generate the final output which is sorted on the key.
  */
-@RunWith(Parameterized.class)
 public class TestMRIntermediateDataEncryption {
   // Where MR job's input will reside.
   private static final Path INPUT_DIR = new Path("/test/input");
@@ -115,8 +114,6 @@ public class TestMRIntermediateDataEncryption {
     numMappers = 3;
     numReducers = 1;
     isUber = false;
-    // Generate input.
-    createInput(fs, numMappers, NUM_LINES);
     doEncryptionTest();
   }
 
@@ -125,8 +122,6 @@ public class TestMRIntermediateDataEncryption {
     numMappers = 3;
     numReducers = 1;
     isUber = true;
-    // Generate input.
-    createInput(fs, numMappers, NUM_LINES);
     doEncryptionTest();
   }
 
@@ -135,8 +130,6 @@ public class TestMRIntermediateDataEncryption {
     numMappers = 8;
     numReducers = 1;
     isUber = false;
-    // Generate input.
-    createInput(fs, numMappers, NUM_LINES);
     doEncryptionTest();
   }
 
@@ -145,12 +138,12 @@ public class TestMRIntermediateDataEncryption {
     numMappers = 2;
     numReducers = 4;
     isUber = false;
-    // Generate input.
-    createInput(fs, numMappers, NUM_LINES);
     doEncryptionTest();
   }
 
   private void doEncryptionTest() throws Exception {
+    // Generate input.
+    createInput(fs, numMappers, NUM_LINES);
     JobConf job = new JobConf(mrCluster.getConfig());
     job.setJobName("Test");
     JobClient client = new JobClient(job);
