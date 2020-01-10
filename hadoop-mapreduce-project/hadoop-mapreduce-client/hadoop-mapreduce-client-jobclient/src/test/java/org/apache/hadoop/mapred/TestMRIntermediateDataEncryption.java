@@ -117,12 +117,12 @@ public class TestMRIntermediateDataEncryption {
       return;
     }
     Configuration conf = new Configuration();
-    conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0F);
-    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
-        ENABLE_JOB_CLEANER);
-    conf.setLong(JHAdminConfig.MR_HISTORY_MOVE_INTERVAL_MS,
-        Math.min(MR_HISTORY_INTERVAL,
-            JHAdminConfig.DEFAULT_MR_HISTORY_MOVE_INTERVAL_MS));
+//    conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0F);
+//    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
+//        ENABLE_JOB_CLEANER);
+//    conf.setLong(JHAdminConfig.MR_HISTORY_MOVE_INTERVAL_MS,
+//        Math.min(MR_HISTORY_INTERVAL,
+//            JHAdminConfig.DEFAULT_MR_HISTORY_MOVE_INTERVAL_MS));
     // Start the mini-MR and mini-DFS clusters.
     dfsCluster = new MiniDFSCluster.Builder(conf)
         .numDataNodes(NUM_NODES).build();
