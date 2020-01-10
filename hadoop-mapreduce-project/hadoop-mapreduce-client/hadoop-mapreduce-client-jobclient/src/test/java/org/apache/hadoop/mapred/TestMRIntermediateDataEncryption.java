@@ -70,7 +70,7 @@ public class TestMRIntermediateDataEncryption {
   private static MiniDFSCluster dfsCluster = null;
   private static final int NUM_NODES = 2;
   private static final boolean ENABLE_JOB_CLEANER = true;
-  private static final long MR_HISTORY_INTERVAL = 30000L;
+  private static final long MR_HISTORY_INTERVAL = 10000L;
   private static FileSystem fs = null;
 
   private final String testTitle;
@@ -193,9 +193,7 @@ public class TestMRIntermediateDataEncryption {
     job.setInt("mapreduce.map.maxattempts", 1);
     job.setInt("mapreduce.reduce.maxattempts", 1);
     job.setInt("mapred.test.num_lines", NUM_LINES);
-    if (isUber) {
-      job.setBoolean("mapreduce.job.ubertask.enable", true);
-    }
+    job.setBoolean(MRJobConfig.JOB_UBERTASK_ENABLE, isUber);
     job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
     try {
       submittedJob = client.submitJob(job);
