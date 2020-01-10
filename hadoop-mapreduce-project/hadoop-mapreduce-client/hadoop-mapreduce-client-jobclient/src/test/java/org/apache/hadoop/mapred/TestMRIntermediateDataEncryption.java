@@ -171,7 +171,7 @@ public class TestMRIntermediateDataEncryption {
     }
   }
 
-  @Test(timeout=225000)
+  @Test(timeout=600000)
   public void testMerge() throws Exception {
     JobConf job = new JobConf(mrCluster.getConfig());
     job.setJobName("Test");
@@ -193,8 +193,9 @@ public class TestMRIntermediateDataEncryption {
     job.setInt("mapreduce.map.maxattempts", 1);
     job.setInt("mapreduce.reduce.maxattempts", 1);
     job.setInt("mapred.test.num_lines", NUM_LINES);
-    job.setBoolean(MRJobConfig.JOB_UBERTASK_ENABLE, isUber);
+    //job.setBoolean(MRJobConfig.JOB_UBERTASK_ENABLE, isUber);
     job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
+
     try {
       submittedJob = client.submitJob(job);
     } catch (Exception ex) {
