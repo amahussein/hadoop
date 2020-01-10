@@ -117,6 +117,7 @@ public class TestMRIntermediateDataEncryption {
       return;
     }
     Configuration conf = new Configuration();
+    conf.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
 //    conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0F);
 //    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
 //        ENABLE_JOB_CLEANER);
