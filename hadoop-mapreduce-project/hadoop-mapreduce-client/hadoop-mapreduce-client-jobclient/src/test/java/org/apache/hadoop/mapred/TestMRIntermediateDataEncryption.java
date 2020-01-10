@@ -195,7 +195,7 @@ public class TestMRIntermediateDataEncryption {
     if (isUber) {
       job.setBoolean("mapreduce.job.ubertask.enable", true);
     }
-   // job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
+    job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
     try {
       submittedJob = client.submitJob(job);
     } catch (Exception ex) {
