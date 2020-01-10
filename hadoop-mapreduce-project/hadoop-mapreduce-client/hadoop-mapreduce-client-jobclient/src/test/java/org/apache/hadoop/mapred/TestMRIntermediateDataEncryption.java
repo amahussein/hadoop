@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.mapred;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
@@ -28,6 +29,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.MRJobConfig;
+import org.apache.hadoop.mapreduce.v2.MiniMRYarnCluster;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -41,6 +43,8 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.*;
 
@@ -55,12 +59,14 @@ import static org.junit.Assert.*;
  */
 @RunWith(Parameterized.class)
 public class TestMRIntermediateDataEncryption {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(TestMRIntermediateDataEncryption.class);
   // Where MR job's input will reside.
   private static final Path INPUT_DIR = new Path("/test/input");
   // Where output goes.
   private static final Path OUTPUT = new Path("/test/output");
   private static final int NUM_LINES = 1000;
-  private static MiniMRClientCluster mrCluster = null;
+  private static MiniMRYarnCluster mrCluster = null;
   private static MiniDFSCluster dfsCluster = null;
   private static final int NUM_NODES = 2;
   private static final boolean ENABLE_JOB_CLEANER = true;
@@ -105,6 +111,11 @@ public class TestMRIntermediateDataEncryption {
 
   @BeforeClass
   public static void setupClass() throws Exception {
+    if (!(new File(MiniMRYarnCluster.APPJAR)).exists()) {
+      LOG.info("MRAppJar " + MiniMRYarnCluster.APPJAR
+          + " not found. Not running test.");
+      return;
+    }
     Configuration conf = new Configuration();
     conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0F);
     conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
@@ -115,9 +126,10 @@ public class TestMRIntermediateDataEncryption {
     // Start the mini-MR and mini-DFS clusters.
     dfsCluster = new MiniDFSCluster.Builder(conf)
         .numDataNodes(NUM_NODES).build();
-    mrCluster = MiniMRClientClusterFactory.create(
-        TestMRIntermediateDataEncryption.class,
-        NUM_NODES, conf);
+    mrCluster = new MiniMRYarnCluster(
+        TestMRIntermediateDataEncryption.class.getName(), NUM_NODES);
+    mrCluster.init(conf);
+    mrCluster.start();
   }
 
   @AfterClass
@@ -184,7 +196,13 @@ public class TestMRIntermediateDataEncryption {
       job.setBoolean("mapreduce.job.ubertask.enable", true);
     }
     job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
-    submittedJob = client.submitJob(job);
+    try {
+      submittedJob = client.submitJob(job);
+    } catch (Exception ex) {
+      LOG.error("Job failed with: " + ex);
+      throw ex;
+    }
+
     submittedJob.waitForCompletion();
     assertTrue("The submitted job is completed", submittedJob.isComplete());
     assertTrue("The submitted job is successful", submittedJob.isSuccessful());
@@ -194,7 +212,7 @@ public class TestMRIntermediateDataEncryption {
       // wait for short period to cool down before moving to next unit.
       Thread.sleep(1000);
     } catch (InterruptedException iex){
-      System.err.println("interrupted exception in main test thread: " + iex);
+      LOG.error("interrupted exception in main test thread: " + iex);
     }
   }
 
