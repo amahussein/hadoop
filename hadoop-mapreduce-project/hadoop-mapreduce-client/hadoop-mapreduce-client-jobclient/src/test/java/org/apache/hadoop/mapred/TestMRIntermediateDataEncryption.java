@@ -17,7 +17,6 @@
  */
 package org.apache.hadoop.mapred;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
@@ -29,12 +28,11 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.MRJobConfig;
-import org.apache.hadoop.mapreduce.v2.MiniMRYarnCluster;
-import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -57,6 +55,7 @@ import static org.junit.Assert.*;
  * framework's merge on the reduce side will merge the partitions created to
  * generate the final output which is sorted on the key.
  */
+@Ignore
 @RunWith(Parameterized.class)
 public class TestMRIntermediateDataEncryption {
   private static final Logger LOG =
@@ -66,12 +65,10 @@ public class TestMRIntermediateDataEncryption {
   // Where output goes.
   private static final Path OUTPUT = new Path("/test/output");
   private static final int NUM_LINES = 1000;
-  private static MiniMRYarnCluster mrCluster = null;
+  private static MiniMRClientCluster mrCluster = null;
   private static MiniDFSCluster dfsCluster = null;
-  private static final int NUM_NODES = 2;
-  private static final boolean ENABLE_JOB_CLEANER = true;
-  private static final long MR_HISTORY_INTERVAL = 10000L;
   private static FileSystem fs = null;
+  private static final int NUM_NODES = 2;
 
   private final String testTitle;
   private final int numMappers;
@@ -89,7 +86,7 @@ public class TestMRIntermediateDataEncryption {
     return Arrays.asList(new Object[][]{
         {"testSingleReducer", 3, 1, false},
         {"testUberMode", 3, 1, true},
-        {"testMultipleMapsPerNode", 4, 1, false},
+        {"testMultipleMapsPerNode", 8, 1, false},
         {"testMultipleReducers", 2, 4, false}
     });
   }
@@ -111,25 +108,14 @@ public class TestMRIntermediateDataEncryption {
 
   @BeforeClass
   public static void setupClass() throws Exception {
-    if (!(new File(MiniMRYarnCluster.APPJAR)).exists()) {
-      LOG.info("MRAppJar " + MiniMRYarnCluster.APPJAR
-          + " not found. Not running test.");
-      return;
-    }
     Configuration conf = new Configuration();
     conf.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
-//    conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0F);
-//    conf.setBoolean(JHAdminConfig.MR_HISTORY_CLEANER_ENABLE,
-//        ENABLE_JOB_CLEANER);
-//    conf.setLong(JHAdminConfig.MR_HISTORY_MOVE_INTERVAL_MS,
-//        Math.min(MR_HISTORY_INTERVAL,
-//            JHAdminConfig.DEFAULT_MR_HISTORY_MOVE_INTERVAL_MS));
     // Start the mini-MR and mini-DFS clusters.
     dfsCluster = new MiniDFSCluster.Builder(conf)
         .numDataNodes(NUM_NODES).build();
-    mrCluster = new MiniMRYarnCluster(
-        TestMRIntermediateDataEncryption.class.getName(), NUM_NODES);
-    mrCluster.init(conf);
+    mrCluster =
+        MiniMRClientClusterFactory.create(
+            TestMRIntermediateDataEncryption.class, NUM_NODES, conf);
     mrCluster.start();
   }
 
@@ -193,7 +179,7 @@ public class TestMRIntermediateDataEncryption {
     job.setInt("mapreduce.map.maxattempts", 1);
     job.setInt("mapreduce.reduce.maxattempts", 1);
     job.setInt("mapred.test.num_lines", NUM_LINES);
-    //job.setBoolean(MRJobConfig.JOB_UBERTASK_ENABLE, isUber);
+    job.setBoolean(MRJobConfig.JOB_UBERTASK_ENABLE, isUber);
     job.setBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA, true);
 
     try {
