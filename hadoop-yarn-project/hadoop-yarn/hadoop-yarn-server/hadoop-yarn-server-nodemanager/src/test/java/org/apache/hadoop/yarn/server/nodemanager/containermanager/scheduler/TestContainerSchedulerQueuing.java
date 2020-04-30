@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.scheduler;
 
+import static org.mockito.Mockito.spy;
+
+import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,9 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.yarn.api.protocolrecords.ContainerUpdateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.ContainerUpdateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
@@ -68,8 +71,6 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
-
-import static org.mockito.Mockito.spy;
 
 /**
  * Tests to verify that the {@link ContainerScheduler} is able to queue and
@@ -1216,7 +1217,7 @@ public class TestContainerSchedulerQueuing extends BaseContainerManagerTest {
 
   @Test
   public void testContainerUpdateExecTypeGuaranteedToOpportunistic()
-      throws IOException, YarnException, InterruptedException {
+          throws Exception {
     delayContainers = true;
     containerManager.start();
     // Construct the Container-id
@@ -1261,12 +1262,18 @@ public class TestContainerSchedulerQueuing extends BaseContainerManagerTest {
     List<ContainerStatus> containerStatuses = containerManager
         .getContainerStatuses(statRequest).getContainerStatuses();
     Assert.assertEquals(1, containerStatuses.size());
-    for (ContainerStatus status : containerStatuses) {
-      Assert.assertEquals(
-          org.apache.hadoop.yarn.api.records.ContainerState.RUNNING,
-          status.getState());
-      Assert
-          .assertEquals(ExecutionType.OPPORTUNISTIC, status.getExecutionType());
+    final org.apache.hadoop.yarn.api.records.ContainerState expectedState =
+            org.apache.hadoop.yarn.api.records.ContainerState.RUNNING;
+    for (final ContainerStatus status : containerStatuses) {
+      // Wait for the containerManager.dispatcher to update the container
+      // executionType.
+      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+        @Override
+        public Boolean get() {
+          return status.getState() == expectedState
+                  && status.getExecutionType() == ExecutionType.OPPORTUNISTIC;
+        }
+      }, 20, 2000);
     }
   }
 }
