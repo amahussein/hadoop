@@ -61,7 +61,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
 
 /**
@@ -88,7 +87,8 @@ public abstract class GenericTestUtils {
   public static final String DEFAULT_TEST_DATA_PATH = "target/test/data/";
 
   /**
-   * Error string used in {@link GenericTestUtils#waitFor(Supplier, int, int)}.
+   * Error string used in
+   * {@link GenericTestUtils#waitFor(java.util.function.Supplier, long, long)}.
    */
   public static final String ERROR_MISSING_ARGUMENT =
       "Input supplier interface should be initailized";
@@ -377,7 +377,47 @@ public abstract class GenericTestUtils {
    * time
    * @throws InterruptedException if the method is interrupted while waiting
    */
-  public static void waitFor(final Supplier<Boolean> check,
+  public static void waitFor(final java.util.function.Supplier<Boolean> check,
+      final long checkEveryMillis, final long waitForMillis)
+      throws TimeoutException, InterruptedException {
+    if (check == null) {
+      throw new NullPointerException(ERROR_MISSING_ARGUMENT);
+    }
+    if (waitForMillis < checkEveryMillis) {
+      throw new IllegalArgumentException(ERROR_INVALID_ARGUMENT);
+    }
+
+    long st = Time.monotonicNow();
+    boolean result = check.get();
+
+    while (!result && (Time.monotonicNow() - st < waitForMillis)) {
+      Thread.sleep(checkEveryMillis);
+      result = check.get();
+    }
+
+    if (!result) {
+      throw new TimeoutException("Timed out waiting for condition. " +
+          "Thread diagnostics:\n" +
+          TimedOutTestsListener.buildThreadDiagnosticString());
+    }
+  }
+
+  /**
+   * Wait for the specified test to return true. The test will be performed
+   * initially and then every {@code checkEveryMillis} until at least
+   * {@code waitForMillis} time has expired. If {@code check} is null or
+   * {@code waitForMillis} is less than {@code checkEveryMillis} this method
+   * will throw an {@link IllegalArgumentException}.
+   *
+   * @param check the test to perform
+   * @param checkEveryMillis how often to perform the test
+   * @param waitForMillis the amount of time after which no more tests will be
+   * performed
+   * @throws TimeoutException if the test does not return true in the allotted
+   * time
+   * @throws InterruptedException if the method is interrupted while waiting
+   */
+  public static void waitFor(final com.google.common.base.Supplier<Boolean> check,
       final long checkEveryMillis, final long waitForMillis)
       throws TimeoutException, InterruptedException {
     if (check == null) {
@@ -756,7 +796,7 @@ public abstract class GenericTestUtils {
       int checkEveryMillis, final int waitForMillis) throws TimeoutException,
       InterruptedException {
     final Pattern pattern = Pattern.compile(regex);
-    waitFor(new Supplier<Boolean>() {
+    waitFor(new java.util.function.Supplier<Boolean>() {
       @Override public Boolean get() {
         return !anyThreadMatching(pattern);
       }
