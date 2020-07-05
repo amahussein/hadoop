@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -24,18 +25,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.stream.Collectors;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.server.common.Util;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Collections2;
-import com.google.common.base.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 
@@ -116,18 +113,15 @@ public class NameNodeResourceChecker {
     
     Collection<URI> extraCheckedVolumes = Util.stringCollectionAsURIs(conf
         .getTrimmedStringCollection(DFSConfigKeys.DFS_NAMENODE_CHECKED_VOLUMES_KEY));
-    
-    Collection<URI> localEditDirs = Collections2.filter(
-        FSNamesystem.getNamespaceEditsDirs(conf),
-        new Predicate<URI>() {
-          @Override
-          public boolean apply(URI input) {
-            if (input.getScheme().equals(NNStorage.LOCAL_URI_SCHEME)) {
-              return true;
-            }
-            return false;
-          }
-        });
+
+    Collection<URI> localEditDirs =
+        FSNamesystem.getNamespaceEditsDirs(conf).stream().filter(
+            input -> {
+              if (input.getScheme().equals(NNStorage.LOCAL_URI_SCHEME)) {
+                return true;
+              }
+              return false;
+            }).collect(Collectors.toList());
 
     // Add all the local edits dirs, marking some as required if they are
     // configured as such.

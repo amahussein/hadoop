@@ -18,14 +18,16 @@
 
 package org.apache.hadoop.metrics2.impl;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+import java.util.Iterator;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.hadoop.metrics2.AbstractMetric;
 import org.apache.hadoop.metrics2.MetricsRecord;
 import org.apache.hadoop.metrics2.MetricsTag;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /**
  * Utility class mainly for tests
@@ -65,16 +67,29 @@ public class MetricsRecords {
         resourceLimitMetric);
   }
 
+  private static <T> T getFirstFromIterableOrDefault(
+      final Iterable<T> iterable, final T defaultVal) {
+    if (iterable == null) {
+      return defaultVal;
+    }
+    Iterator<T> iterator = iterable.iterator();
+    return iterator.hasNext() ? iterator.next() : defaultVal;
+  }
+
   private static MetricsTag getFirstTagByName(MetricsRecord record, String name) {
-    return Iterables.getFirst(Iterables.filter(record.tags(),
-        new MetricsTagPredicate(name)), null);
+    Iterable<MetricsTag> iterable =
+        record.tags().stream().filter(new MetricsTagPredicate(name)).collect(
+            Collectors.toList());
+    return getFirstFromIterableOrDefault(iterable, null);
   }
 
   private static AbstractMetric getFirstMetricByName(
       MetricsRecord record, String name) {
-    return Iterables.getFirst(
-        Iterables.filter(record.metrics(), new AbstractMetricPredicate(name)),
-        null);
+    Iterable<AbstractMetric> iterable =
+        StreamSupport.stream(record.metrics().spliterator(), false).filter(
+            new AbstractMetricPredicate(name)).collect(
+            Collectors.toList());
+    return getFirstFromIterableOrDefault(iterable, null);
   }
 
   private static class MetricsTagPredicate implements Predicate<MetricsTag> {
@@ -86,13 +101,14 @@ public class MetricsRecords {
     }
 
     @Override
-    public boolean apply(MetricsTag input) {
+    public boolean test(MetricsTag input) {
       return input.name().equals(tagName);
     }
   }
 
   private static class AbstractMetricPredicate
       implements Predicate<AbstractMetric> {
+
     private String metricName;
 
     public AbstractMetricPredicate(
@@ -101,7 +117,7 @@ public class MetricsRecords {
     }
 
     @Override
-    public boolean apply(AbstractMetric input) {
+    public boolean test(AbstractMetric input) {
       return input.name().equals(metricName);
     }
   }

@@ -24,7 +24,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
-
+import java.util.stream.Collectors;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSUtil;
@@ -37,10 +37,6 @@ import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INodeDirectory;
 import org.apache.hadoop.hdfs.server.namenode.XAttrFeature;
 import org.apache.hadoop.hdfs.util.ReadOnlyList;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import org.apache.hadoop.security.AccessControlException;
 
 /** Snapshot of a sub-tree in the namesystem. */
@@ -149,20 +145,15 @@ public class Snapshot implements Comparable<byte[]> {
   static public class Root extends INodeDirectory {
     Root(INodeDirectory other) {
       // Always preserve ACL, XAttr.
-      super(other, false, Lists.newArrayList(
-        Iterables.filter(Arrays.asList(other.getFeatures()), new Predicate<Feature>() {
-
-          @Override
-          public boolean apply(Feature input) {
-            if (AclFeature.class.isInstance(input) 
-                || XAttrFeature.class.isInstance(input)) {
-              return true;
-            }
-            return false;
-          }
-          
-        }))
-        .toArray(new Feature[0]));
+      super(other, false,
+          Arrays.asList(other.getFeatures()).stream().filter(
+              input -> {
+                if (AclFeature.class.isInstance(input)
+                    || XAttrFeature.class.isInstance(input)) {
+                  return true;
+                }
+                return false;
+              }).collect(Collectors.toList()).toArray(new Feature[0]));
     }
 
     @Override

@@ -18,49 +18,60 @@
 
 package org.apache.hadoop.metrics2.impl;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
+import static org.apache.hadoop.metrics2.lib.Interns.info;
+import static org.apache.hadoop.metrics2.lib.Interns.tag;
+import static org.apache.hadoop.test.MoreAsserts.assertEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atMost;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
-import javax.annotation.Nullable;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
-import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
-
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.StreamSupport;
 import org.apache.commons.configuration2.SubsetConfiguration;
-import org.apache.hadoop.metrics2.MetricsException;
-import org.apache.hadoop.test.GenericTestUtils;
-import static org.apache.hadoop.test.MoreAsserts.*;
-
 import org.apache.hadoop.metrics2.AbstractMetric;
+import org.apache.hadoop.metrics2.MetricsException;
 import org.apache.hadoop.metrics2.MetricsRecord;
 import org.apache.hadoop.metrics2.MetricsSink;
 import org.apache.hadoop.metrics2.MetricsSource;
 import org.apache.hadoop.metrics2.MetricsSystem;
 import org.apache.hadoop.metrics2.MetricsTag;
-import org.apache.hadoop.metrics2.annotation.*;
-import static org.apache.hadoop.metrics2.lib.Interns.*;
+import org.apache.hadoop.metrics2.annotation.Metric;
+import org.apache.hadoop.metrics2.annotation.Metrics;
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.metrics2.lib.MetricsRegistry;
 import org.apache.hadoop.metrics2.lib.MutableCounterLong;
-import org.apache.hadoop.metrics2.lib.MutableRate;
 import org.apache.hadoop.metrics2.lib.MutableGaugeLong;
+import org.apache.hadoop.metrics2.lib.MutableRate;
+import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.util.StringUtils;
-import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -247,12 +258,8 @@ public class TestMetricsSystemImpl {
       t.join();
     assertEquals(0L, ms.droppedPubAll.value());
     assertTrue(StringUtils.join("\n", Arrays.asList(results)),
-      Iterables.all(Arrays.asList(results), new Predicate<String>() {
-        @Override
-        public boolean apply(@Nullable String input) {
-          return input.equalsIgnoreCase("Passed");
-        }
-      }));
+        Arrays.asList(results).stream().allMatch(
+            input -> input.equalsIgnoreCase("Passed")));
     ms.stop();
     ms.shutdown();
   }
@@ -482,14 +489,14 @@ public class TestMetricsSystemImpl {
       ms.onTimerEvent();
       verify(dataSink, timeout(500).times(2)).putMetrics(r1.capture());
       List<MetricsRecord> mr = r1.getAllValues();
-      Number qSize = Iterables.find(mr.get(1).metrics(),
-          new Predicate<AbstractMetric>() {
-            @Override
-            public boolean apply(@Nullable AbstractMetric input) {
-              assert input != null;
-              return input.name().equals("Sink_slowSinkQsize");
-            }
-      }).value();
+      //Number qSize = ;
+      AbstractMetric qSizeRes =
+          StreamSupport.stream(mr.get(1).metrics().spliterator(), false).filter(
+              input -> {
+                assert input != null;
+                return input.name().equals("Sink_slowSinkQsize");
+              }).findFirst().get();
+      Number qSize = qSizeRes.value();
       assertEquals(1, qSize);
     } finally {
       proceedSignal.countDown();

@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.yarn.logaggregation;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
@@ -45,6 +47,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.io.output.WriterOutputStream;
 import org.apache.commons.math3.util.Pair;
@@ -73,10 +76,6 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.util.Times;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 
 @Public
 @Evolving
@@ -355,14 +354,9 @@ public class AggregatedLogFormat {
               : this.logAggregationContext.getRolledLogsExcludePattern(),
           candidates, true);
 
-      Iterable<File> mask =
-          Iterables.filter(candidates, new Predicate<File>() {
-            @Override
-            public boolean apply(File next) {
-              return !alreadyUploadedLogFiles
-                  .contains(getLogFileMetaData(next));
-            }
-          });
+      Iterable<File> mask = candidates.stream().filter(
+          next -> !alreadyUploadedLogFiles
+              .contains(getLogFileMetaData(next))).collect(Collectors.toList());
       return Sets.newHashSet(mask);
     }
 
