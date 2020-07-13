@@ -39,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.TestContainerLocalizer.FakeContainerLocalizer.FakeLongDownload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,7 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -94,7 +96,7 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.util.function.Supplier;
+
 
 public class TestContainerLocalizer {
 
@@ -345,24 +347,18 @@ public class TestContainerLocalizer {
       threadA.start();
       threadB.start();
 
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
-        @Override
-        public Boolean get() {
-          FakeContainerLocalizer.FakeLongDownload downloader =
-              localizerA.getDownloader();
-          return downloader != null && downloader.getShexc() != null &&
-              downloader.getShexc().getProcess() != null;
-        }
+      GenericTestUtils.waitFor((Supplier<Boolean>) () -> {
+        FakeLongDownload downloader =
+            localizerA.getDownloader();
+        return downloader != null && downloader.getShexc() != null &&
+            downloader.getShexc().getProcess() != null;
       }, 10, 30000);
 
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
-        @Override
-        public Boolean get() {
-          FakeContainerLocalizer.FakeLongDownload downloader =
-              localizerB.getDownloader();
-          return downloader != null && downloader.getShexc() != null &&
-              downloader.getShexc().getProcess() != null;
-        }
+      GenericTestUtils.waitFor((Supplier<Boolean>) () -> {
+        FakeLongDownload downloader =
+            localizerB.getDownloader();
+        return downloader != null && downloader.getShexc() != null &&
+            downloader.getShexc().getProcess() != null;
       }, 10, 30000);
 
       shexcA = localizerA.getDownloader().getShexc();

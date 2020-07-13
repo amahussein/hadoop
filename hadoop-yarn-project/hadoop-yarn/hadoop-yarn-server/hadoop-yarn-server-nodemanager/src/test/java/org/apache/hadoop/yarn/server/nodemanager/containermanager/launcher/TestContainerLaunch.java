@@ -51,10 +51,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.function.Supplier;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import java.util.function.Supplier;
 import com.google.common.collect.Lists;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
@@ -1109,12 +1109,8 @@ public class TestContainerLaunch extends BaseContainerManagerTest {
         StartContainersRequest.newInstance(list);
     containerManager.startContainers(allRequests);
 
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
-      @Override
-      public Boolean get() {
-        return processFinalFile.exists();
-      }
-    }, 10, 20000);
+    GenericTestUtils.waitFor(
+        (Supplier<Boolean>) () -> processFinalFile.exists(), 10, 20000);
 
     // Now verify the contents of the file
     List<String> localDirs = dirsHandler.getLocalDirs();
