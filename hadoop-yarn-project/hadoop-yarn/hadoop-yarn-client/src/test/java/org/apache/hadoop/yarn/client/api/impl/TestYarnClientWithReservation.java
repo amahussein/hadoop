@@ -103,7 +103,7 @@ public class TestYarnClientWithReservation {
     cluster.init(getConfigurationForReservation());
     cluster.start();
 
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return cluster.getResourceManager().getRMContext()

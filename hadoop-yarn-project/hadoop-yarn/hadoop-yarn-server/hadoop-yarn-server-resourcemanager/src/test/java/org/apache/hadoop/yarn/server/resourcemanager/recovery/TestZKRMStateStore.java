@@ -307,7 +307,7 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
     ApplicationId appId1 =
         ApplicationId.fromString("application_1352994193343_0001");
     storeApp(store, appId1, submitTime, startTime);
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return dispatcher.appsavefailedEvnt;

@@ -230,7 +230,7 @@ public class TestLeaderElectorService {
     zkCluster.killServer(connectionInstance);
 
     // wait for rm1 or rm2 to be active by randomness
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override public Boolean get() {
         try {
           HAServiceState rm1State =
@@ -261,7 +261,7 @@ public class TestLeaderElectorService {
   private void waitFor(final MockRM rm,
       final HAServiceState state)
       throws TimeoutException, InterruptedException {
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override public Boolean get() {
         try {
           return rm.getAdminService().getServiceStatus().getState()

@@ -236,7 +236,7 @@ public class TestApplicationMasterLauncher {
     nm1.nodeHeartbeat(true);
 
     try {
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override public Boolean get() {
           return containerManager.launched;
         }
@@ -270,7 +270,7 @@ public class TestApplicationMasterLauncher {
     rm.waitForState(am.getApplicationAttemptId(), RMAppAttemptState.FINISHED);
 
     try {
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override public Boolean get() {
           return containerManager.cleanedup;
         }
@@ -295,7 +295,7 @@ public class TestApplicationMasterLauncher {
     RMAppAttempt attempt = app.getCurrentAppAttempt();
 
     try {
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override public Boolean get() {
           return attempt.getMasterContainer() != null;
         }
@@ -468,7 +468,7 @@ public class TestApplicationMasterLauncher {
     RMAppAttempt attempt = app.getCurrentAppAttempt();
 
     try {
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override public Boolean get() {
           return attempt.getMasterContainer() != null;
         }

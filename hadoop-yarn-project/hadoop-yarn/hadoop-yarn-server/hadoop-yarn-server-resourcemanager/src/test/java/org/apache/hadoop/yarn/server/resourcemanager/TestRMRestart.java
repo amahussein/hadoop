@@ -747,7 +747,7 @@ public class TestRMRestart extends ParameterizedSchedulerTestBase {
     rm3.waitForState(rmApp.getApplicationId(), RMAppState.ACCEPTED);
     final int maxRetry = 10;
     final RMApp rmAppForCheck = rmApp;
-    GenericTestUtils.waitFor(
+    GenericTestUtils.holdFor(
         new Supplier<Boolean>() {
           @Override
           public Boolean get() {

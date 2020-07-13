@@ -2516,7 +2516,7 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
         ((AppLogAggregatorImpl) logAggregationService.getAppLogAggregators()
           .get(application1)).getUgi();
 
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         boolean hasNewToken = false;
         for (Token<?> token : ugi.getCredentials().getAllTokens()) {

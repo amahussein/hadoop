@@ -4523,7 +4523,7 @@ public class TestCapacityScheduler extends CapacitySchedulerTestBase {
             amResourceLimit.getVirtualCores() + 1);
 
     // Wait for the scheduler to be updated with new node capacity
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override
         public Boolean get() {
           return scheduler.getMaximumResourceCapability().getMemorySize() == nodeMemory;

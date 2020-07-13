@@ -382,7 +382,7 @@ public class MockServiceAM extends ServiceMaster {
 
   public void waitForDependenciesSatisfied(String compName)
       throws TimeoutException, InterruptedException {
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override public Boolean get() {
         return context.scheduler.getAllComponents().get(compName)
             .areDependenciesReady();
@@ -392,7 +392,7 @@ public class MockServiceAM extends ServiceMaster {
 
   public void waitForNumDesiredContainers(String compName,
       int numDesiredContainers) throws TimeoutException, InterruptedException {
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override public Boolean get() {
         return context.scheduler.getAllComponents().get(compName)
             .getNumDesiredInstances() == numDesiredContainers;
@@ -410,7 +410,7 @@ public class MockServiceAM extends ServiceMaster {
   public void waitForCompInstanceState(ComponentInstance instance,
       ComponentInstanceState state)
       throws TimeoutException, InterruptedException {
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return instance.getState().equals(state);

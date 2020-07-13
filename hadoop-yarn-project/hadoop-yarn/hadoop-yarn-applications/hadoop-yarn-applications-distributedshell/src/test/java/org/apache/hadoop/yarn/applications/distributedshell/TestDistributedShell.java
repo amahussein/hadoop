@@ -1508,7 +1508,7 @@ public class TestDistributedShell {
 
   private void waitForContainersLaunch(YarnClient client,
       int nContainers) throws Exception {
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         try {
           List<ApplicationReport> apps = client.getApplications();

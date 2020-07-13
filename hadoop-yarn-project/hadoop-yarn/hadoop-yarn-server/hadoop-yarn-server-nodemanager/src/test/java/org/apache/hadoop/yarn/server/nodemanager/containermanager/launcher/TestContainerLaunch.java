@@ -1109,7 +1109,7 @@ public class TestContainerLaunch extends BaseContainerManagerTest {
         StartContainersRequest.newInstance(list);
     containerManager.startContainers(allRequests);
 
-    GenericTestUtils.waitFor(
+    GenericTestUtils.holdFor(
         (Supplier<Boolean>) () -> processFinalFile.exists(), 10, 20000);
 
     // Now verify the contents of the file

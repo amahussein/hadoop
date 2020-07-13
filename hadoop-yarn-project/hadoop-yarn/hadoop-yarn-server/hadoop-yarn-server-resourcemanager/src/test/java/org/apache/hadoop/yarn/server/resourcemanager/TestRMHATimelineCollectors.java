@@ -103,7 +103,7 @@ public class TestRMHATimelineCollectors extends RMHATestBase {
     // stamp). and addr of app2 should be collectorAddr22 since its version
     // number is
     // greater.
-    GenericTestUtils.waitFor((Supplier<Boolean>) () -> {
+    GenericTestUtils.holdFor((Supplier<Boolean>) () -> {
       try {
         Map<ApplicationId, AppCollectorData> results2 = nm2
             .nodeHeartbeat(true).getAppCollectors();

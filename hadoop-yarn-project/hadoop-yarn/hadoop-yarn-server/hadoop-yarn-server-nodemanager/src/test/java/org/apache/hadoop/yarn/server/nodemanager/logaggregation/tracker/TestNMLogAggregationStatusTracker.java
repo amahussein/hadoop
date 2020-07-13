@@ -139,7 +139,7 @@ public class TestNMLogAggregationStatusTracker {
         LogAggregationStatus.RUNNING,
         reports.get(0).getLogAggregationStatus());
     // wait for 10s
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         List<LogAggregationReport>reports = tracker

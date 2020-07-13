@@ -203,7 +203,7 @@ public class TestRMDelegationTokens {
     rmDT.setMaxDate(tokenTime);
     dtSecretManager.storeNewToken(rmDT, tokenTime);
     // give it time to process
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return rmState.getRMDTSecretManagerState().getTokenState().
             containsKey(rmDT);
@@ -217,7 +217,7 @@ public class TestRMDelegationTokens {
     Assert.assertEquals("Secret manager should have no keys",
         dtSecretManager.getAllMasterKeys().size(), 0);
     dtSecretManager.recover(rmState);
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return
             rmState.getRMDTSecretManagerState().getTokenState().
@@ -229,7 +229,7 @@ public class TestRMDelegationTokens {
     // The remover thread should immediately do its work,
     // still give it some time to process
     dtSecretManager.startThreads();
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return
             !rmState.getRMDTSecretManagerState().getTokenState().

@@ -1240,7 +1240,7 @@ public class TestWorkPreservingRMRestart extends ParameterizedSchedulerTestBase 
     }
     assertTrue(receivedCompletedContainer);
 
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         // release cache is cleaned up and previous running container is not
         // recovered

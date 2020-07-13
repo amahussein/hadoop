@@ -1003,7 +1003,7 @@ public class TestDelegationTokenRenewer {
                 .build());
 
     // wait for the initial expiring hdfs token to be removed from allTokens
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return
             rm.getRMContext().getDelegationTokenRenewer().getAllTokens()
@@ -1012,7 +1012,7 @@ public class TestDelegationTokenRenewer {
     }, 1000, 20000);
 
     // wait for the initial expiring hdfs token to be removed from appTokens
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return !rm.getRMContext().getDelegationTokenRenewer()
           .getDelegationTokens().contains(token1);
@@ -1020,7 +1020,7 @@ public class TestDelegationTokenRenewer {
     }, 1000, 20000);
 
     // wait for the new retrieved hdfs token.
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return rm.getRMContext().getDelegationTokenRenewer()
           .getDelegationTokens().contains(expectedToken);
@@ -1187,7 +1187,7 @@ public class TestDelegationTokenRenewer {
     RMApp app = MockRMAppSubmitter.submitWithMemory(200, rm);
 
     // wait for the new retrieved hdfs token.
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return rm.getRMContext().getDelegationTokenRenewer()
           .getDelegationTokens().contains(token2);
@@ -1384,7 +1384,7 @@ public class TestDelegationTokenRenewer {
     Assert.assertFalse(Renewer.cancelled);
 
     finishAMAndWaitForComplete(app3, rm, nm1, am3, dttr);
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return !renewer.getAllTokens().containsKey(token1);
@@ -1392,14 +1392,14 @@ public class TestDelegationTokenRenewer {
     }, 10, 5000);
     Assert.assertFalse(renewer.getAllTokens().containsKey(token1));
     Assert.assertTrue(dttr.referringAppIds.isEmpty());
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return dttr.isTimerCancelled();
       }
     }, 10, 5000);
     Assert.assertTrue(dttr.isTimerCancelled());
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return Renewer.cancelled;
@@ -1415,7 +1415,7 @@ public class TestDelegationTokenRenewer {
       MockNM nm, MockAM am, final DelegationTokenToRenew dttr)
           throws Exception {
     MockRM.finishAMAndVerifyAppState(app, rm, nm, am);
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return !dttr.referringAppIds.contains(app.getApplicationId());
       }
@@ -1462,7 +1462,7 @@ public class TestDelegationTokenRenewer {
     // submit app
     RMApp app = submitApp(rm, credentials, tokenConf);
 
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         DelegationTokenToRenew toRenew =
             rm.getRMContext().getDelegationTokenRenewer().getAllTokens()

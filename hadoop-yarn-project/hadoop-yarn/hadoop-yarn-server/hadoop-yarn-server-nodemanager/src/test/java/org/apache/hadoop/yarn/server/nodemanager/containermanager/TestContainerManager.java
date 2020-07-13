@@ -1249,7 +1249,7 @@ public class TestContainerManager extends BaseContainerManagerTest {
     containerManager.localize(request);
 
     // Verify resource is localized and symlink is created.
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         try {
           checkResourceLocalized(cId, "symLink2");

@@ -692,7 +692,7 @@ public class TestRMHA {
     OpportunisticContainerAllocatorAMService appMaster =
         (OpportunisticContainerAllocatorAMService) rm.getRMContext()
             .getApplicationMasterService();
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         return appMaster.getLeastLoadedNodes().size() == 1;

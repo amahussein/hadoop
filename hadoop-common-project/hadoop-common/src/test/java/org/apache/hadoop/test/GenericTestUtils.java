@@ -88,7 +88,7 @@ public abstract class GenericTestUtils {
 
   /**
    * Error string used in
-   * {@link GenericTestUtils#waitFor(java.util.function.Supplier, long, long)}.
+   * {@link GenericTestUtils#holdFor(java.util.function.Supplier, long, long)}.
    */
   public static final String ERROR_MISSING_ARGUMENT =
       "Input supplier interface should be initailized";
@@ -377,7 +377,7 @@ public abstract class GenericTestUtils {
    * time
    * @throws InterruptedException if the method is interrupted while waiting
    */
-  public static void waitFor(final java.util.function.Supplier<Boolean> check,
+  public static void holdFor(final java.util.function.Supplier<Boolean> check,
       final long checkEveryMillis, final long waitForMillis)
       throws TimeoutException, InterruptedException {
     if (check == null) {
@@ -797,7 +797,7 @@ public abstract class GenericTestUtils {
       int checkEveryMillis, final int waitForMillis) throws TimeoutException,
       InterruptedException {
     final Pattern pattern = Pattern.compile(regex);
-    waitFor(new java.util.function.Supplier<Boolean>() {
+    holdFor(new java.util.function.Supplier<Boolean>() {
       @Override public Boolean get() {
         return !anyThreadMatching(pattern);
       }

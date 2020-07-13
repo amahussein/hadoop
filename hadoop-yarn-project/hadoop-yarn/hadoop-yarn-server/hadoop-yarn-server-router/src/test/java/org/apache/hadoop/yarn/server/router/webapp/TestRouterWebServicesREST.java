@@ -178,7 +178,7 @@ public class TestRouterWebServicesREST {
       final WebResource toRouter = clientToRouter
           .resource(address)
           .path(path);
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override
         public Boolean get() {
           try {
@@ -1339,7 +1339,7 @@ public class TestRouterWebServicesREST {
     testAppsXML();
 
     // Wait at most 10 seconds until we see all the applications
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       @Override
       public Boolean get() {
         try {

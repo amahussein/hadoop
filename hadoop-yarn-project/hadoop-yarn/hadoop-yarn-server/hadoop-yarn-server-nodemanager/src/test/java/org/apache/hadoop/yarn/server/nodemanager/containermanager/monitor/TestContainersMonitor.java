@@ -225,7 +225,7 @@ public class TestContainersMonitor extends BaseContainerManagerTest {
     BaseContainerManagerTest
         .waitForContainerState(containerManager, cId, ContainerState.RUNNING);
     Thread.sleep(2000);
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         try {
           return containerManager.getContainerStatuses(

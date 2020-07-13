@@ -347,14 +347,14 @@ public class TestContainerLocalizer {
       threadA.start();
       threadB.start();
 
-      GenericTestUtils.waitFor((Supplier<Boolean>) () -> {
+      GenericTestUtils.holdFor((Supplier<Boolean>) () -> {
         FakeLongDownload downloader =
             localizerA.getDownloader();
         return downloader != null && downloader.getShexc() != null &&
             downloader.getShexc().getProcess() != null;
       }, 10, 30000);
 
-      GenericTestUtils.waitFor((Supplier<Boolean>) () -> {
+      GenericTestUtils.holdFor((Supplier<Boolean>) () -> {
         FakeLongDownload downloader =
             localizerB.getDownloader();
         return downloader != null && downloader.getShexc() != null &&

@@ -395,7 +395,7 @@ public class TestContinuousScheduling extends FairSchedulerTestBase {
     // time
     mockClock.tickSec(delayThresholdTimeMs / 1000);
     scheduler.attemptScheduling(node);
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+    GenericTestUtils.holdFor(new Supplier<Boolean>() {
       public Boolean get() {
         return fsAppAttempt.getLastScheduledContainer().size() != 0;
       }

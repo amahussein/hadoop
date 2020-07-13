@@ -168,7 +168,7 @@ public class TestRMFailover extends ClientBaseWithFixes {
   private void verifyRMTransitionToStandby(ResourceManager rm)
       throws InterruptedException {
     try {
-      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      GenericTestUtils.holdFor(new Supplier<Boolean>() {
         @Override
         public Boolean get() {
           return rm.getRMContext().getHAServiceState() ==
