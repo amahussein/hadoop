@@ -28,8 +28,7 @@ import org.apache.hadoop.yarn.server.timelineservice.storage.TimelineWriter;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.base.Supplier;
-
+import java.util.function.Supplier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -104,22 +103,19 @@ public class TestRMHATimelineCollectors extends RMHATestBase {
     // stamp). and addr of app2 should be collectorAddr22 since its version
     // number is
     // greater.
-    GenericTestUtils.waitFor(new Supplier<Boolean>() {
-      @Override
-      public Boolean get() {
-        try {
-          Map<ApplicationId, AppCollectorData> results2 = nm2
-              .nodeHeartbeat(true).getAppCollectors();
-          if (null != results2) {
-            return collectorAddr1 == results2.get(app1.getApplicationId())
-                .getCollectorAddr()
-                && collectorAddr22 == results2.get(app2.getApplicationId())
-                    .getCollectorAddr();
-          }
-          return false;
-        } catch (Exception e) {
-          return false;
+    GenericTestUtils.waitFor((Supplier<Boolean>) () -> {
+      try {
+        Map<ApplicationId, AppCollectorData> results2 = nm2
+            .nodeHeartbeat(true).getAppCollectors();
+        if (null != results2) {
+          return collectorAddr1 == results2.get(app1.getApplicationId())
+              .getCollectorAddr()
+              && collectorAddr22 == results2.get(app2.getApplicationId())
+                  .getCollectorAddr();
         }
+        return false;
+      } catch (Exception e) {
+        return false;
       }
     }, 300, 10000);
 

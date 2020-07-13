@@ -417,7 +417,8 @@ public abstract class GenericTestUtils {
    * time
    * @throws InterruptedException if the method is interrupted while waiting
    */
-  public static void waitFor(final com.google.common.base.Supplier<Boolean> check,
+  public static void waitFor(
+      final com.google.common.base.Supplier<Boolean> check,
       final long checkEveryMillis, final long waitForMillis)
       throws TimeoutException, InterruptedException {
     if (check == null) {
