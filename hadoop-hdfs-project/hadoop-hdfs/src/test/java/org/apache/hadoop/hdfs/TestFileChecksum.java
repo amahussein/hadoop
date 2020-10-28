@@ -53,6 +53,11 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCK_ACCESS_TOKEN_ENABLE
 public class TestFileChecksum {
   private static final Logger LOG = LoggerFactory
       .getLogger(TestFileChecksum.class);
+
+  static {
+    GenericTestUtils.setLogLevel(LOG, Level.DEBUG);
+  }
+
   private final ErasureCodingPolicy ecPolicy =
       StripedFileTestUtil.getDefaultECPolicy();
   private int dataBlocks = ecPolicy.getNumDataUnits();
